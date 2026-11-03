@@ -180,6 +180,9 @@
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
   }
+  @media (min-width: 1180px) {
+    .card-grid { grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  }
   .card {
     padding: 22px 10px;
     background: #f8f9fb;
@@ -231,6 +234,8 @@
     overflow-y: auto;
     padding-right: 4px;
   }
+  .pool-wrap { flex: 1.9 1 0; }
+  .rank-wrap { flex: 1 1 0; }
 
   .action-bar {
     display: flex;
@@ -277,8 +282,12 @@
   .analysis-content li { margin-bottom: 5px; }
 
   @media (max-height: 820px) {
-    .card { padding: 14px 8px; font-size: 17px; }
-    .card-grid { gap: 9px; }
+    .card { padding: 8px 6px 9px; min-height: 96px; gap: 2px; }
+    .card-ico { font-size: 21px; }
+    .card-label { font-size: 13.6px; line-height: 1.22; }
+    .card-hint { font-size: 9.8px; line-height: 1.35; }
+    .rank-card { min-height: 84px; }
+    .card-grid { gap: 8px; }
     .section-title { margin: 6px 0 8px; font-size: 16px; }
     .name-row { margin-bottom: 10px; }
     .name-display { padding: 9px 14px; font-size: 18px; }
@@ -372,18 +381,24 @@
 
   /* ===== 卡片图标 ===== */
   .card {
-    padding: 14px 8px 12px;
-    min-height: 92px;
+    padding: 12px 9px 11px;
+    min-height: 118px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 3px;
+    justify-content: flex-start;
+    gap: 4px;
+    text-align: center;
   }
-  .card-ico { font-size: 26px; line-height: 1.1; }
-  .card-label { font-size: 15.5px; font-weight: 700; line-height: 1.3; }
-  .rank-card .card-ico { font-size: 22px; }
-  .rank-card .card-label { font-size: 14.5px; }
+  .card-ico { font-size: 25px; line-height: 1; margin-top: 2px; }
+  .card-label { font-size: 15px; font-weight: 800; line-height: 1.28; color: #1a2e4b; }
+  .card-hint {
+    font-size: 10.8px; line-height: 1.42; color: #8a93a3;
+    font-weight: 400; margin-top: 1px;
+  }
+  .rank-card .card-ico { font-size: 20px; margin-top: 4px; }
+  .rank-card .card-label { font-size: 14px; }
+  .rank-card { min-height: 100px; }
 
   .empty-tip {
     color: #aaa;
@@ -459,7 +474,7 @@
       <span>📦 待排序卡片</span>
       <span class="sub">点卡片 → 加入排序（只选与你相关的）</span>
     </div>
-    <div class="cards-wrap">
+    <div class="cards-wrap pool-wrap">
       <div class="card-grid" id="cardPool"></div>
     </div>
 
@@ -467,7 +482,7 @@
       <span>🏆 我的排序（从重要 → 不重要）<span style="font-size:13px;color:#999;font-weight:400;"> · 选相关的就行，不必选满</span></span>
       <span class="sub" id="rankCount">已选 0 张</span>
     </div>
-    <div class="cards-wrap">
+    <div class="cards-wrap rank-wrap">
       <div class="card-grid" id="rankArea"></div>
     </div>
 
@@ -529,41 +544,41 @@ const DEFAULT_STUDENTS = [
    每张卡都对着「AI 时代真实会遇到的场景」
    ============================================================ */
 const CARDS = [
-  '我说了算', '别管我用',
-  '真的学会', '做出东西',
-  '快点搞定', '能省事就省事',
-  '不被落下', '一起研究',
-  '是我自己写的', '不被带偏'
+  '自己决定用不用', '越禁越想用',
+  '关掉AI也能讲', '做出像样作品',
+  '按时交就行', '要现成答案',
+  '别人都在用', '一起研究怎么用',
+  '必须是我自己写的', '先怀疑再核实'
 ];
 
 const ICONS = {
-  '我说了算': '🧭', '别管我用': '🕹️',
-  '真的学会': '🧠', '做出东西': '🏆',
-  '快点搞定': '⚡', '能省事就省事': '🛋️',
-  '不被落下': '👀', '一起研究': '🤝',
-  '是我自己写的': '⚖️', '不被带偏': '🛡️'
+  '自己决定用不用': '🧭', '越禁越想用': '🔓',
+  '关掉AI也能讲': '🧠', '做出像样作品': '🏆',
+  '按时交就行': '⏰', '要现成答案': '🛋️',
+  '别人都在用': '👀', '一起研究怎么用': '🤝',
+  '必须是我自己写的': '✍️', '先怀疑再核实': '🔍'
 };
 
 const HINTS = {
-  '我说了算': 'AI 什么时候用、怎么用，我自己决定',
-  '别管我用': '不喜欢被规定「能」或「不能」用',
-  '真的学会': '关掉 AI，我也能讲明白',
-  '做出东西': '做出来一件像样的作品，有成就感',
-  '快点搞定': '省时间，别折腾，先把任务交了',
-  '能省事就省事': '能少费劲就少费劲',
-  '不被落下': '同学都在用，我不想掉队',
-  '一起研究': '和同学一起琢磨怎么用好',
-  '是我自己写的': '交上去的东西，得是我自己的',
-  '不被带偏': '能识破 AI 编的内容和诈骗套路'
+  '自己决定用不用': '用不用、用哪种，按我自己的情况判断',
+  '越禁越想用': '被一刀切地禁止，反而更想偷偷试',
+  '关掉AI也能讲': '合上电脑，我还能把这道题讲清楚',
+  '做出像样作品': '能拿出一个连自己都满意的成果',
+  '按时交就行': '卡着截止日期交上去，不扣分最重要',
+  '要现成答案': '能直接给我答案，就别让我自己想',
+  '别人都在用': '同学都在用，我不想显得落后',
+  '一起研究怎么用': '和同学交流技巧、互相出题考对方',
+  '必须是我自己写的': '交上去的东西，署名得是我自己的',
+  '先怀疑再核实': 'AI 说的先别全信，我去查一遍再说'
 };
 
 // 5 个维度（每个维度 2 张卡）
 const DIMS = [
-  { key: '自主', icon: '🧭', cards: ['我说了算', '别管我用'] },
-  { key: '成长', icon: '🌱', cards: ['真的学会', '做出东西'] },
-  { key: '效率', icon: '⚡', cards: ['快点搞定', '能省事就省事'] },
-  { key: '归属', icon: '🤝', cards: ['不被落下', '一起研究'] },
-  { key: '底线', icon: '⚖️', cards: ['是我自己写的', '不被带偏'] }
+  { key: '自主', icon: '🧭', cards: ['自己决定用不用', '越禁越想用'] },
+  { key: '成长', icon: '🌱', cards: ['关掉AI也能讲', '做出像样作品'] },
+  { key: '效率', icon: '⚡', cards: ['按时交就行', '要现成答案'] },
+  { key: '归属', icon: '🤝', cards: ['别人都在用', '一起研究怎么用'] },
+  { key: '底线', icon: '⚖️', cards: ['必须是我自己写的', '先怀疑再核实'] }
 ];
 
 const MIN_CARDS = 3;
@@ -603,7 +618,9 @@ function renderCardPool() {
     const div = document.createElement('div');
     div.className = 'card';
     div.title = HINTS[card] || '';
-    div.innerHTML = `<div class="card-ico">${ICONS[card] || '·'}</div><div class="card-label">${card}</div>`;
+    div.innerHTML = `<div class="card-ico">${ICONS[card] || '·'}</div>
+      <div class="card-label">${card}</div>
+      <div class="card-hint">${HINTS[card] || ''}</div>`;
     div.onclick = () => selectCard(card);
     pool.appendChild(div);
   });
@@ -757,35 +774,35 @@ function typeIndexOf(dims) {
 const TYPE_INFO = {
   '自主': {
     name: '🧭 自主型', color: '#4F8EF7',
-    desc: '你要的是「我说了算」——AI 什么时候用、怎么用，你希望自己决定，不喜欢被一刀切地规定。这份自主意识是好事，它让你不会盲从。',
+    desc: '你希望「自己决定用不用」——不喜欢被一刀切地规定，越被禁止反而越想去试。这份自主意识是好事，它让你不盲从；但也容易让你把「我自己能判断」当成「我不会出问题」。',
     strengths: ['有主见，不容易被同伴或广告带着走', '愿意主动探索工具，上手快', '对自己有要求，不完全依赖外界推动'],
     risks: ['「我自己能判断」有时会高估自己的免疫力', '容易忽略规则背后的风险（考试、版权、隐私）', '自主过了头 → 真出问题时反而不告诉大人'],
     advice: ['给自己划一条明确的线：哪些事用 AI、哪些绝不用', '不确定的场景，先问再用，而不是先用再解释', '把「我做主」变成「我负责」——用 AI 做的事，结果你担']
   },
   '成长': {
     name: '🌱 成长型', color: '#52c41a',
-    desc: '你最看重「真的学会」——不只是交上去，而是关掉 AI 也能讲明白。在答案随手可得的时代，这种坚持很稀缺。',
+    desc: '你最看重「关掉 AI 也能讲」——不只是把作业交上去，而是合上电脑还能把道理讲清楚。在答案随手可得的时代，这种坚持很稀缺。',
     strengths: ['内驱力强，不容易被短期分数带偏', '底子扎实，越到后面越省力', '抗挫折能力好，愿意啃硬骨头'],
     risks: ['节奏偏慢，短期分数可能不如「会用 AI」的同学', '容易对靠 AI 提分的同学产生不公平感', '可能低估 AI 作为学习工具的价值'],
     advice: ['把 AI 当「讲解老师」：让它一步步讲，别直接要答案', '用 AI 生成变式题，检验自己是不是真会了', '定期做一次「无 AI 自测」，确认能力是自己的']
   },
   '效率': {
     name: '⚡ 效率型', color: '#FF7A45',
-    desc: '你看重省时省力，希望快点搞定。这本身没错——AI 最大的价值就是提效。但效率型最容易在「只求交差」这条路上滑出去。',
+    desc: '你看重「按时交就行」和「直接给答案」——时间紧、任务多，先把东西交上去再说。这本身没错，AI 最大的价值就是提效；但效率型最容易在「只求交差」这条路上滑出去。',
     strengths: ['执行力强，做事不拖', '对工具敏感，能快速上手新东西', '目标明确，不把精力浪费在没用的地方'],
     risks: ['容易把「完成」当成「学会」', '长期跳过思考，能力会悄悄退化，自己察觉不到', '遇到需要慢功夫的任务容易放弃'],
     advice: ['给自己设「AI 冷静期」：拿到答案先合上，复述一遍再打开', '每周留一次完全不用 AI 完成作业，检验真实水平', '用 AI 出初稿可以，最后一遍必须自己重写']
   },
   '归属': {
     name: '🤝 归属型', color: '#13C2C2',
-    desc: '你很在意同伴——不想被落下，也愿意和大家一起研究。这很真实，青春期的同伴影响本来就最强。',
+    desc: '你很在意同伴——「别人都在用」会给你压力，但你也愿意「一起研究怎么用」。这很真实，青春期的同伴影响本来就最强。',
     strengths: ['共情力强，能感知集体的氛围', '愿意交流，学东西快', '在团队里是黏合剂'],
     risks: ['容易因为「大家都在用」而跟风', '别人用得狠，你也跟着用狠', '不太敢做「第一个不用 AI」的人'],
     advice: ['把「一起研究」变成优势：和同学互相出题考对方', '遇到大家都在做的事，先问一句：这真的有用吗？', '找一个「一起做难事」的小圈子，而不是「一起抄捷径」']
   },
   '底线': {
     name: '⚖️ 底线型', color: '#9254DE',
-    desc: '你在意「这是不是我自己写的」和「会不会被骗」。在 AI 会一本正经胡说八道的时代，这种警觉很值钱。',
+    desc: '你在意「必须是我自己写的」和「先怀疑再核实」。在 AI 会一本正经胡说八道的时代，这种警觉很值钱。',
     strengths: ['底线清晰，不容易被捷径诱惑', '有怀疑意识，不容易被忽悠', '值得信任，老师家长更放心'],
     risks: ['可能因为怕出错而不敢用新工具', '容易用自己的标准要求别人，产生冲突', '过度谨慎 → 错过合理使用 AI 的红利'],
     advice: ['把底线写下来：哪些绝不做（代写作业、伪造材料）', '练「三问」：AI 说的有依据吗？我能验证吗？出错谁负责？', '在安全范围内试错，别因为怕就完全不用']
