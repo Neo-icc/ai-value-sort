@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数据恢复 · AI时代价值排序</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 60px;
+    font: 15px/1.7 -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: #f0f2f5; color: #1a2e4b;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .sub { color: #6b7684; font-size: 13.5px; margin-bottom: 18px; }
+  .card {
+    background: #fff; border-radius: 12px; padding: 18px 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.06); margin-bottom: 16px;
+  }
+  .ok { border-left: 4px solid #52c41a; }
+  .bad { border-left: 4px solid #ff7a45; }
+  .info { border-left: 4px solid #4F8EF7; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; margin-top: 8px; }
+  th, td { border: 1px solid #e8ecf2; padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: #f4f7fc; font-weight: 600; }
+  tr.done td { background: #f6fdf9; }
+  textarea {
+    width: 100%; height: 180px; font: 12.5px/1.6 Consolas, monospace;
+    padding: 10px; border: 1px solid #dde3ec; border-radius: 8px; resize: vertical;
+    background: #fbfcfe;
+  }
+  button {
+    border: none; border-radius: 8px; padding: 10px 18px; font-size: 14px;
+    cursor: pointer; font-weight: 600; margin: 8px 8px 0 0;
+  }
+  .p { background: #4F8EF7; color: #fff; }
+  .p:hover { background: #3a7be8; }
+  .s { background: #f0f2f5; color: #444; }
+  .s:hover { background: #e5e8ee; }
+  code { background: #eef1f6; padding: 1px 5px; border-radius: 4px; font-size: .92em; }
+  .kv { font-size: 13px; color: #555; }
+  .kv b { color: #1a2e4b; }
+  .hint { font-size: 13px; color: #6b7684; line-height: 1.8; }
+  .warn { background: #fff8e6; border: 1px solid #ffe0a3; padding: 12px 14px; border-radius: 8px; font-size: 13.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔍 数据恢复工具</h1>
+  <div class="sub">用于找回「AI时代价值排序」在浏览器本地保存的班级数据</div>
+
+  <div class="card info">
+    <h2>① 当前环境</h2>
+    <div class="kv">
+      页面来源：<b id="origin">—</b><br>
+      存储键：<code>ai_value_class_v2</code><br>
+      读取结果：<b id="status">检测中…</b>
+    </div>
+  </div>
+
+  <div id="result"></div>
+
+  <div class="card">
+    <h2>② 说明</h2>
+    <div class="hint">
+      数据存在浏览器的 <b>localStorage</b> 里，它跟「来源」绑定：<br>
+      · 用本地文件打开（<code>file:///…</code>）存的，和<br>
+      · 用网址打开（<code>https://neo-icc.github.io/…</code>）存的，是<b>两套独立数据</b>。<br><br>
+      所以：<b>必须在当初上课时用的那个浏览器、从同一个地址打开本页面</b>，才能读到。
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>③ 没读到怎么办</h2>
+    <div class="warn">
+      <b>按可能性排查：</b><br>
+      1. 换浏览器：上课时可能用的是 Chrome / Edge / 360 等另一个浏览器<br>
+      2. 换地址：试试用本地文件打开本页面（把 recover.html 和 index.html 放同一文件夹）<br>
+      3. 换设备：如果课上用的是教室电脑，需要在那台电脑上打开本页面<br>
+      4. 检查是否用过无痕/隐私窗口 —— 无痕模式的存储关闭即清空，无法找回<br>
+      5. 检查是否点过页面的「🗑️ 重置全部」按钮
+    </div>
+  </div>
+</div>
+
+<script>
+const KEY = 'ai_value_class_v2';
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+(function main() {
+  const originEl = document.getElementById('origin');
+  const statusEl = document.getElementById('status');
+  const resultEl = document.getElementById('result');
+
+  let origin = location.origin;
+  if (location.protocol === 'file:') origin = 'file://（本地文件打开）';
+  originEl.textContent = origin;
+
+  let raw = null;
+  try { raw = localStorage.getItem(KEY); } catch (e) {
+    statusEl.textContent = '读取失败：' + e.message;
+    return;
+  }
+
+  if (!raw) {
+    statusEl.textContent = '未找到数据';
+    statusEl.style.color = '#ff7a45';
+    resultEl.innerHTML = '<div class="card bad"><h2>这个地址下没有保存过数据</h2>' +
+      '<div class="hint">请按下方「没读到怎么办」逐条排查。找到后回到本页刷新即可。</div></div>';
+    return;
+  }
+
+  let data = null;
+  try { data = JSON.parse(raw); } catch (e) {
+    statusEl.textContent = '找到但格式异常';
+    statusEl.style.color = '#ff7a45';
+    resultEl.innerHTML = '<div class="card bad"><h2>数据存在但无法解析</h2>' +
+      '<textarea readonly>' + esc(raw) + '</textarea></div>';
+    return;
+  }
+
+  const submitted = data.filter(s => s.submitted).length;
+  const withRank = data.filter(s => s.rank && s.rank.length).length;
+
+  statusEl.textContent = '✅ 找到数据';
+  statusEl.style.color = '#52c41a';
+
+  let rows = '';
+  data.forEach(s => {
+    const n = (s.rank || []).length;
+    rows += '<tr class="' + (s.submitted ? 'done' : '') + '">' +
+      '<td>' + esc(s.name) + '</td>' +
+      '<td>' + (s.submitted ? '已提交' : '未提交') + '</td>' +
+      '<td>' + n + '</td>' +
+      '<td>' + esc((s.rank || []).map((c, i) => (i + 1) + '.' + c).join(' → ')) + '</td>' +
+      '<td>' + esc(s.time || '') + '</td></tr>';
+  });
+
+  resultEl.innerHTML =
+    '<div class="card ok"><h2>✅ 已读取到数据</h2>' +
+    '<div class="kv">学生 <b>' + data.length + '</b> 人 ｜ 已提交 <b>' + submitted +
+    '</b> 人 ｜ 有排序 <b>' + withRank + '</b> 人</div>' +
+    '<table><thead><tr><th>姓名</th><th>状态</th><th>张数</th><th>排序（从重要到不重要）</th><th>提交时间</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>' +
+    '<button class="p" id="dl">⬇️ 下载 JSON（发给我即可复原）</button>' +
+    '<button class="s" id="cp">📋 复制 JSON</button>' +
+    '</div>' +
+    '<div class="card"><h2>原始 JSON</h2><textarea id="raw" readonly>' + esc(raw) + '</textarea></div>';
+
+  document.getElementById('dl').onclick = () => {
+    const blob = new Blob([raw], { type: 'application/json;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '价值排序-备份-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+  };
+  document.getElementById('cp').onclick = () => {
+    const t = document.getElementById('raw');
+    t.select(); document.execCommand('copy');
+    alert('已复制，粘贴发我即可');
+  };
+})();
+</script>
+</body>
+</html>
