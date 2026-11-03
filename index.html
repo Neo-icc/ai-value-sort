@@ -286,6 +286,90 @@
     .btn { padding: 10px; font-size: 14px; }
   }
 
+  /* ===== 球星卡 ===== */
+  .hero-card {
+    position: relative;
+    border-radius: 16px;
+    padding: 16px 16px 14px;
+    margin-bottom: 16px;
+    color: #fff;
+    background: linear-gradient(160deg, #0f2238 0%, #1c3e6b 48%, #2a5a94 100%);
+    box-shadow: 0 10px 26px rgba(15,34,56,0.35), inset 0 0 0 1px rgba(255,255,255,0.10);
+    overflow: hidden;
+  }
+  .hero-card::before {
+    content: '';
+    position: absolute;
+    top: -45%; right: -55%;
+    width: 70%; height: 150%;
+    background: linear-gradient(120deg, rgba(255,255,255,0.16), rgba(255,255,255,0) 62%);
+    transform: rotate(14deg);
+    pointer-events: none;
+  }
+  .hero-card::after {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border: 1px solid rgba(240,196,106,0.42);
+    border-radius: 12px;
+    pointer-events: none;
+  }
+  .hc-top { display: flex; gap: 12px; align-items: center; position: relative; z-index: 1; }
+  .hc-avatar {
+    width: 78px; height: 78px; flex: 0 0 78px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.28);
+    overflow: hidden;
+  }
+  .hc-id { flex: 1; min-width: 0; }
+  .hc-name {
+    font-size: 19px; font-weight: 800; letter-spacing: 0.5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  }
+  .hc-type {
+    display: inline-block;
+    margin-top: 5px;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 700;
+    background: rgba(240,196,106,0.18);
+    border: 1px solid rgba(240,196,106,0.55);
+    color: #F5D89A;
+  }
+  .hc-no {
+    position: absolute; top: 0; right: 0;
+    font-size: 11px; letter-spacing: 1px;
+    color: rgba(240,196,106,0.85);
+    font-weight: 700;
+  }
+  .hc-radar { position: relative; z-index: 1; margin: 2px 0 -4px; }
+  .hc-stats { position: relative; z-index: 1; }
+  .hc-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; margin-bottom: 5px;
+  }
+  .hc-row .lb { width: 48px; flex: 0 0 48px; color: rgba(255,255,255,0.82); }
+  .hc-row .bar {
+    flex: 1; height: 7px; border-radius: 4px;
+    background: rgba(255,255,255,0.14); overflow: hidden;
+  }
+  .hc-row .bar i {
+    display: block; height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, #7fd0ff, #F5D89A);
+    transition: width .5s ease;
+  }
+  .hc-row .vl { width: 26px; text-align: right; font-weight: 800; color: #F5D89A; }
+  .hc-quote {
+    position: relative; z-index: 1;
+    margin-top: 10px; padding-top: 9px;
+    border-top: 1px dashed rgba(255,255,255,0.22);
+    font-size: 12.5px; line-height: 1.65; color: rgba(255,255,255,0.88);
+  }
+  .hc-quote b { color: #F5D89A; }
+
   .empty-tip {
     color: #aaa;
     text-align: center;
@@ -659,29 +743,206 @@ function buildAnalysis(data) {
     cheatDesc = '你内心有清晰的底线和判断，不容易被短期诱惑带偏，防骗免疫力较强。继续保持你的节奏和原则。';
   }
 
-  return `
-    <h4>你的价值类型</h4>
-    <p><strong style="font-size:18px;">${type}</strong></p>
+  return renderStarCard(data, type, desc, strengths, risks, aiAdvice, cheatRisk, cheatDesc);
+}
+
+/* ===== 球星卡渲染 ===== */
+const DIMS = [
+  { key: '成长力', cards: ['真学会', '学到真本事', '享受过程', '成就感'] },
+  { key: '诚信度', cards: ['要诚实', '问心无愧'] },
+  { key: '目标感', cards: ['考高分', '不落后'] },
+  { key: '效率观', cards: ['省时间', '图轻松'] },
+  { key: '集体感', cards: ['和大家一样', '不挨批'] }
+];
+
+const TYPE_COLOR = {
+  '成长型内核': '#52c41a',
+  '目标驱动型': '#FF7A45',
+  '价值坚守型': '#9254DE',
+  '群体适配型': '#13C2C2',
+  '多元平衡型': '#4F8EF7'
+};
+
+// 由排序结果计算五维（1-5）
+function computeDims(rank) {
+  const n = rank.length;
+  return DIMS.map(d => {
+    const idxs = [];
+    rank.forEach((c, i) => { if (d.cards.indexOf(c) >= 0) idxs.push(i); });
+    if (!idxs.length) return 3;
+    let sum = 0;
+    idxs.forEach(i => { sum += (n > 1 ? i / (n - 1) : 0); });
+    const avg = sum / idxs.length;          // 0 = 最看重
+    const v = 5 - 4 * avg;
+    return Math.round(v * 10) / 10;
+  });
+}
+
+// 简单字符串哈希（用于生成稳定的卡通形象）
+function hashSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+
+// 卡通头像（SVG，按姓名哈希稳定生成）
+function makeAvatar(name, typeName) {
+  const seed = hashSeed(name);
+  const color = TYPE_COLOR[typeName] || '#4F8EF7';
+  const skin = ['#F6D2B4', '#EFC09A', '#E8B08A'][seed % 3];
+  const hairColor = ['#2C2F33', '#3B2A20', '#4A3B2A', '#1F2328'][(seed >> 3) % 4];
+  const hairStyle = (seed >> 5) % 4;
+  const hasGlass = ((seed >> 7) % 3) === 0;
+  const num = (seed % 98) + 1;
+
+  let hair = '';
+  if (hairStyle === 0) {
+    hair = `<path d="M26,44 Q28,16 50,16 Q72,16 74,44 Q72,32 50,30 Q28,32 26,44 Z" fill="${hairColor}"/>`;
+  } else if (hairStyle === 1) {
+    hair = `<path d="M25,45 Q26,15 50,15 Q74,15 75,45 Q70,30 54,27 Q68,34 66,45 Q60,30 50,30 Q32,30 30,45 Z" fill="${hairColor}"/>`;
+  } else if (hairStyle === 2) {
+    hair = `<circle cx="32" cy="30" r="9" fill="${hairColor}"/><circle cx="44" cy="22" r="10" fill="${hairColor}"/>
+            <circle cx="57" cy="22" r="10" fill="${hairColor}"/><circle cx="69" cy="31" r="9" fill="${hairColor}"/>
+            <path d="M26,44 Q30,26 50,26 Q70,26 74,44 Q68,34 50,34 Q32,34 26,44 Z" fill="${hairColor}"/>`;
+  } else {
+    hair = `<path d="M26,44 Q28,16 50,16 Q72,16 74,44 Q70,34 58,32 Q62,24 50,26 Q36,28 32,38 Q28,40 26,44 Z" fill="${hairColor}"/>
+            <circle cx="50" cy="14" r="7" fill="${hairColor}"/>`;
+  }
+
+  const glasses = hasGlass ? `
+    <g stroke="#38404d" stroke-width="1.8" fill="none">
+      <circle cx="42" cy="46" r="7"/><circle cx="58" cy="46" r="7"/>
+      <line x1="49" y1="46" x2="51" y2="46"/>
+    </g>` : `
+    <circle cx="42" cy="46" r="2.8" fill="#20242b"/>
+    <circle cx="58" cy="46" r="2.8" fill="#20242b"/>
+    <circle cx="43" cy="45" r="1" fill="#fff"/>
+    <circle cx="59" cy="45" r="1" fill="#fff"/>`;
+
+  return `<svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="avbg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0.15"/>
+      </linearGradient>
+    </defs>
+    <rect width="100" height="100" fill="url(#avbg)"/>
+    <path d="M14,100 Q50,68 86,100 Z" fill="${color}"/>
+    <text x="50" y="92" font-size="15" font-weight="800" fill="#fff"
+          text-anchor="middle" opacity="0.92">${num}</text>
+    <rect x="44" y="62" width="12" height="12" rx="3" fill="${skin}"/>
+    <ellipse cx="50" cy="47" rx="23" ry="25" fill="${skin}"/>
+    ${hair}
+    ${glasses}
+    <path d="M43,57 Q50,63 57,57" stroke="#20242b" stroke-width="2.2"
+          fill="none" stroke-linecap="round"/>
+    <circle cx="34" cy="52" r="3.4" fill="#F3A0A0" opacity="0.45"/>
+    <circle cx="66" cy="52" r="3.4" fill="#F3A0A0" opacity="0.45"/>
+  </svg>`;
+}
+
+// 五维雷达图
+function radarSVG(vals, color) {
+  const cx = 90, cy = 90, R = 62;
+  const labels = ['成长力', '诚信度', '目标感', '效率观', '集体感'];
+  const pt = (r, i) => {
+    const a = -Math.PI / 2 + i * 2 * Math.PI / 5;
+    return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+  };
+  let g = '';
+  for (let k = 1; k <= 5; k++) {
+    const pts = [0, 1, 2, 3, 4].map(i => pt(R * k / 5, i).map(v => v.toFixed(1)).join(',')).join(' ');
+    g += `<polygon points="${pts}" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>`;
+  }
+  for (let i = 0; i < 5; i++) {
+    const p = pt(R, i);
+    g += `<line x1="${cx}" y1="${cy}" x2="${p[0].toFixed(1)}" y2="${p[1].toFixed(1)}" stroke="rgba(255,255,255,0.13)"/>`;
+  }
+  const dpts = vals.map((v, i) => pt(R * v / 5, i));
+  g += `<polygon points="${dpts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}"
+         fill="${color}" fill-opacity="0.34" stroke="${color}" stroke-width="2.2" stroke-linejoin="round"/>`;
+  dpts.forEach(p => {
+    g += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.4" fill="${color}"/>`;
+  });
+  labels.forEach((lb, i) => {
+    const p = pt(R + 17, i);
+    g += `<text x="${p[0].toFixed(1)}" y="${p[1].toFixed(1)}" font-size="11"
+           fill="rgba(255,255,255,0.9)" text-anchor="middle" dominant-baseline="middle">${lb}</text>`;
+  });
+  return `<svg viewBox="0 0 180 180" width="100%" height="182">${g}</svg>`;
+}
+
+// 球探报告一句话
+function scoutLine(typeName, cheatRisk) {
+  const map = {
+    '成长型内核': '球探评语：内驱型选手，成长曲线陡，肯在过程里下功夫。',
+    '目标驱动型': '球探评语：终结能力强，目标明确，关键时刻敢出手。',
+    '价值坚守型': '球探评语：防守型基石，底线清晰，不轻易被晃倒。',
+    '群体适配型': '球探评语：团队型球员，视野好、配合意识强。',
+    '多元平衡型': '球探评语：全能型，无明显短板，需强化专项进攻手段。'
+  };
+  return (map[typeName] || '球探评语：发展潜力待观察，建议持续跟踪。') +
+         ' 防骗抗性：' + cheatRisk.replace(/[⚠️⚡✅]\s*/g, '') + '。';
+}
+
+function renderStarCard(data, type, desc, strengths, risks, aiAdvice, cheatRisk, cheatDesc) {
+  const rank = data.rank;
+  const typeName = type.replace(/^[^一-龥A-Za-z]+/, '').trim();
+  const color = TYPE_COLOR[typeName] || '#4F8EF7';
+  const vals = computeDims(rank);
+  const seed = hashSeed(data.name);
+  const cardNo = String((seed % 900) + 100);
+
+  const rows = DIMS.map((d, i) => `
+      <div class="hc-row">
+        <span class="lb">${d.key}</span>
+        <span class="bar"><i style="width:${(vals[i] / 5 * 100).toFixed(0)}%"></i></span>
+        <span class="vl">${vals[i].toFixed(1)}</span>
+      </div>`).join('');
+
+  const card = `
+    <div class="hero-card">
+      <div class="hc-top">
+        <div class="hc-avatar">${makeAvatar(data.name, typeName)}</div>
+        <div class="hc-id">
+          <div class="hc-name">${data.name}</div>
+          <div class="hc-type">${type}</div>
+          <div class="hc-no">CARD #${cardNo}</div>
+        </div>
+      </div>
+      <div class="hc-radar">${radarSVG(vals, color)}</div>
+      <div class="hc-stats">${rows}</div>
+      <div class="hc-quote">${scoutLine(typeName, cheatRisk)}</div>
+    </div>
+  `;
+
+  const detail = `
+    <h4>类型解读</h4>
     <p>${desc}</p>
 
-    <h4>你的核心优势</h4>
+    <h4>核心优势</h4>
     <ul>${strengths.map(s => `<li>${s}</li>`).join('')}</ul>
 
-    <h4>需要留意的倾向</h4>
+    <h4>需要留意</h4>
     <ul>${risks.map(r => `<li>${r}</li>`).join('')}</ul>
 
-    <h4>AI使用专属建议</h4>
+    <h4>AI 使用建议</h4>
     <ul>${aiAdvice.map(a => `<li>${a}</li>`).join('')}</ul>
 
-    <h4>留学防骗风险提示</h4>
+    <h4>留学防骗提示</h4>
     <p>风险等级：<strong>${cheatRisk}</strong></p>
     <p style="font-size:13px;color:#666;">${cheatDesc}</p>
 
-    <h4>你的完整排序（共 ${rank.length} 张）</h4>
+    <h4>完整排序（共 ${rank.length} 张）</h4>
     <p style="font-size:13px;color:#666;line-height:2.2;">
-      ${rank.map((r,i) => `${i+1}. ${r}`).join(' ｜ ')}
+      ${rank.map((r, i) => `${i + 1}. ${r}`).join(' ｜ ')}
     </p>
   `;
+
+  return card + detail;
 }
 
 // 渲染学生列表
