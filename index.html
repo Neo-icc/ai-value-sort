@@ -370,6 +370,21 @@
   }
   .hc-quote b { color: #F5D89A; }
 
+  /* ===== 卡片图标 ===== */
+  .card {
+    padding: 14px 8px 12px;
+    min-height: 92px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+  }
+  .card-ico { font-size: 26px; line-height: 1.1; }
+  .card-label { font-size: 15.5px; font-weight: 700; line-height: 1.3; }
+  .rank-card .card-ico { font-size: 22px; }
+  .rank-card .card-label { font-size: 14.5px; }
+
   .empty-tip {
     color: #aaa;
     text-align: center;
@@ -488,7 +503,7 @@
 </div>
 
 <script>
-// ========== 预设学生名单 ==========
+// ========== 学生名单 ==========
 const DEFAULT_STUDENTS = [
   { name: '任绎帆 Fiona', rank: [], time: '' },
   { name: '陈思源 Alice', rank: [], time: '' },
@@ -506,85 +521,135 @@ const DEFAULT_STUDENTS = [
   { name: '白益冰 Elena', rank: [], time: '' }
 ];
 
-// 12个价值维度
+/* ============================================================
+   10 张价值卡 · 5 个维度
+   框架：自主（我说了算）｜成长（我真会了）｜效率（快速交差）
+        归属（同伴怎么看）｜底线（能不能过自己这关）
+   —— 对应青春期三大心理需求（自主 / 胜任 / 归属）+ 意义与诚信
+   每张卡都对着「AI 时代真实会遇到的场景」
+   ============================================================ */
 const CARDS = [
-  '考高分', '省时间', '真学会', '要诚实',
-  '图轻松', '成就感', '不挨批', '不落后',
-  '问心无愧', '享受过程', '和大家一样', '学到真本事'
+  '我说了算', '别管我用',
+  '真的学会', '做出东西',
+  '快点搞定', '能省事就省事',
+  '不被落下', '一起研究',
+  '是我自己写的', '不被带偏'
 ];
 
-// 全局数据
+const ICONS = {
+  '我说了算': '🧭', '别管我用': '🕹️',
+  '真的学会': '🧠', '做出东西': '🏆',
+  '快点搞定': '⚡', '能省事就省事': '🛋️',
+  '不被落下': '👀', '一起研究': '🤝',
+  '是我自己写的': '⚖️', '不被带偏': '🛡️'
+};
+
+const HINTS = {
+  '我说了算': 'AI 什么时候用、怎么用，我自己决定',
+  '别管我用': '不喜欢被规定「能」或「不能」用',
+  '真的学会': '关掉 AI，我也能讲明白',
+  '做出东西': '做出来一件像样的作品，有成就感',
+  '快点搞定': '省时间，别折腾，先把任务交了',
+  '能省事就省事': '能少费劲就少费劲',
+  '不被落下': '同学都在用，我不想掉队',
+  '一起研究': '和同学一起琢磨怎么用好',
+  '是我自己写的': '交上去的东西，得是我自己的',
+  '不被带偏': '能识破 AI 编的内容和诈骗套路'
+};
+
+// 5 个维度（每个维度 2 张卡）
+const DIMS = [
+  { key: '自主', icon: '🧭', cards: ['我说了算', '别管我用'] },
+  { key: '成长', icon: '🌱', cards: ['真的学会', '做出东西'] },
+  { key: '效率', icon: '⚡', cards: ['快点搞定', '能省事就省事'] },
+  { key: '归属', icon: '🤝', cards: ['不被落下', '一起研究'] },
+  { key: '底线', icon: '⚖️', cards: ['是我自己写的', '不被带偏'] }
+];
+
+const MIN_CARDS = 3;
+
+// ========== 全局 ==========
 let students = [];
 let currentStudent = null;
 let currentRank = [];
 
-// 初始化
+// ========== 初始化 ==========
 function init() {
   const saved = localStorage.getItem('ai_value_class_v2');
   if (saved) {
-    students = JSON.parse(saved);
+    try { students = JSON.parse(saved); } catch (e) { students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS)); }
   } else {
     students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS));
   }
-  // 旧数据迁移：没有 submitted 字段的，按原来 8 张判定
+  // 迁移：旧版卡片（已下线）从排序中剔除；未提交字段补齐
   students.forEach(st => {
+    if (Array.isArray(st.rank)) {
+      const filtered = st.rank.filter(c => CARDS.indexOf(c) >= 0);
+      if (filtered.length !== st.rank.length) { st.rank = filtered; st.submitted = false; }
+    }
     if (st.submitted === undefined) st.submitted = !!(st.rank && st.rank.length >= 8);
   });
   renderCardPool();
+  renderRankArea();
   renderStudentList();
 }
 
-// 渲染待选卡片
+// ========== 卡片池 ==========
 function renderCardPool() {
   const pool = document.getElementById('cardPool');
   pool.innerHTML = '';
   CARDS.forEach(card => {
-    if (!currentRank.includes(card)) {
-      const div = document.createElement('div');
-      div.className = 'card';
-      div.textContent = card;
-      div.onclick = () => selectCard(card);
-      pool.appendChild(div);
-    }
+    if (currentRank.indexOf(card) >= 0) return;
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.title = HINTS[card] || '';
+    div.innerHTML = `<div class="card-ico">${ICONS[card] || '·'}</div><div class="card-label">${card}</div>`;
+    div.onclick = () => selectCard(card);
+    pool.appendChild(div);
   });
 }
 
-// 渲染已排序
+// ========== 排序区 ==========
 function renderRankArea() {
   const area = document.getElementById('rankArea');
   area.innerHTML = '';
   currentRank.forEach((card, index) => {
     const div = document.createElement('div');
     div.className = 'card rank-card';
-    div.innerHTML = `<div class="rank-badge">${index+1}</div>${card}`;
+    div.innerHTML = `<div class="rank-badge">${index + 1}</div>
+      <div class="card-ico">${ICONS[card] || '·'}</div>
+      <div class="card-label">${card}</div>`;
     div.onclick = () => removeCard(index);
     area.appendChild(div);
   });
   const n = currentRank.length;
-  const hint = n === 0 ? '已选 0 张' : (n < 3 ? `已选 ${n} 张 · 至少 3 张` : `已选 ${n} 张 · 可提交`);
-  document.getElementById('rankCount').textContent = hint;
+  const el = document.getElementById('rankCount');
+  if (el) {
+    el.textContent = n === 0 ? '已选 0 张'
+      : (n < MIN_CARDS ? `已选 ${n} 张 · 至少 ${MIN_CARDS} 张` : `已选 ${n} 张 · 可提交`);
+  }
 }
 
-// 选卡片
+// ========== 选择 ==========
 function selectCard(card) {
   if (!currentStudent) {
-    alert('请先点击左侧学生姓名');
+    document.getElementById('analysisContent').innerHTML =
+      '<div class="empty-tip">👉 请先在左侧点击一位同学</div>';
     return;
   }
-  if (currentRank.length >= 12) return;
+  if (currentRank.length >= CARDS.length) return;
+  if (currentRank.indexOf(card) >= 0) return;
   currentRank.push(card);
   renderCardPool();
   renderRankArea();
 }
 
-// 移除卡片
 function removeCard(index) {
   currentRank.splice(index, 1);
   renderCardPool();
   renderRankArea();
 }
 
-// 撤回
 function undoLast() {
   if (currentRank.length > 0) {
     currentRank.pop();
@@ -593,19 +658,18 @@ function undoLast() {
   }
 }
 
-// 重置当前学生排序
 function resetRank() {
   if (!currentStudent) return;
   if (confirm('确定清空当前同学的排序，重新开始吗？')) {
     currentRank = [];
     renderCardPool();
     renderRankArea();
-    document.getElementById('analysisContent').innerHTML = 
-      '<div class="empty-tip">完成排序后<br>点击「生成AI价值画像」<br>即可查看专属深度分析</div>';
+    document.getElementById('analysisContent').innerHTML =
+      '<div class="empty-tip">选好后点绿色「确认提交」<br>这里会生成专属球星卡</div>';
   }
 }
 
-// 加载学生
+// ========== 加载学生 ==========
 function loadStudent(name) {
   const s = students.find(x => x.name === name);
   if (!s) return;
@@ -614,20 +678,16 @@ function loadStudent(name) {
   currentRank = s.rank ? [...s.rank] : [];
   renderCardPool();
   renderRankArea();
-  
-  if (s.submitted && s.rank && s.rank.length >= 3) {
-    document.getElementById('analysisContent').innerHTML = buildAnalysis(s);
+  const box = document.getElementById('analysisContent');
+  if (s.submitted && s.rank && s.rank.length >= MIN_CARDS) {
+    box.innerHTML = buildAnalysis(s);
   } else {
-    document.getElementById('analysisContent').innerHTML = 
-      '<div class="empty-tip">完成排序后<br>点击「生成AI价值画像」<br>即可查看专属深度分析</div>';
+    box.innerHTML = '<div class="empty-tip">👈 先点左侧同学<br>👆 再按重要程度点卡片（≥3 张即可）<br>最后点绿色「确认提交」生成画像</div>';
   }
   renderStudentList();
 }
 
-// 最低张数：选 3 张即可出画像（不必选满 12 张）
-const MIN_CARDS = 3;
-
-// 保存并生成画像（确认提交 / 右侧生成 共用）
+// ========== 提交 ==========
 function saveAndRender(options) {
   const box = document.getElementById('analysisContent');
   const silent = options && options.silent;
@@ -666,119 +726,96 @@ function flashSubmitBtn() {
   }, 1600);
 }
 
-// 确认提交（中间栏底部）
-function submitRank() {
-  saveAndRender();
-}
+function submitRank() { saveAndRender(); }
+function generateAnalysis() { saveAndRender({ silent: true }); }
 
-// 生成画像（右侧按钮）
-function generateAnalysis() {
-  saveAndRender({ silent: true });
-}
-
-// ========== AI智能分析引擎 ==========
-function buildAnalysis(data) {
-  const rank = data.rank;
-  const n = rank.length;
-  // 按已选张数自适应：取前/后各 k 张（k 随总数变化，最少 1 张）
-  const k = Math.max(1, Math.min(3, Math.floor(n / 3)));
-  const top3 = rank.slice(0, k);
-  const bottom3 = rank.slice(-k);
-  const need = Math.max(1, Math.ceil(k * 0.6));
-  
-  const growthSet = new Set(['真学会', '成就感', '学到真本事', '享受过程']);
-  const resultSet = new Set(['考高分', '不落后', '省时间', '图轻松']);
-  const moralSet = new Set(['要诚实', '问心无愧']);
-  const socialSet = new Set(['和大家一样', '不挨批']);
-
-  const growthTop = top3.filter(x => growthSet.has(x)).length;
-  const resultTop = top3.filter(x => resultSet.has(x)).length;
-  const moralTop = top3.filter(x => moralSet.has(x)).length;
-  const socialTop = top3.filter(x => socialSet.has(x)).length;
-
-  let type = '', desc = '';
-  let strengths = [], risks = [], aiAdvice = [];
-
-  if (growthTop >= need) {
-    type = '🌱 成长型内核';
-    desc = '你最看重真正的成长和内在收获，而不是表面分数和别人的评价。对你来说，过程本身就是意义，学到真东西比一时的成绩更重要。';
-    strengths = ['长期驱动力强，不容易被短期诱惑带偏', '抗挫折能力好，更能接受挑战和失败', '对自己的要求来自内心，不是外界压力'];
-    risks = ['可能会忽视应试技巧，在分数上吃亏', '节奏偏慢，在快节奏竞争中容易焦虑'];
-    aiAdvice = ['AI适合当你的「讲解老师」，不要当「答案工具」', '多用AI拓展知识边界，少用AI抄捷径', '让AI做你的「反方辩手」，挑战你的观点'];
-  } else if (resultTop >= need) {
-    type = '⚡ 目标驱动型';
-    desc = '你目标感很强，看重效率和结果，知道自己要什么，也愿意为之付出。你做事讲究性价比，不喜欢做没用的事。';
-    strengths = ['执行力强，目标明确，做事不拖沓', '适应竞争环境，能快速抓住重点', '对资源和时间的敏感度很高'];
-    risks = ['容易为了结果走捷径，忽略长期积累', '太在意输赢，容易被焦虑推着走', '可能过度依赖AI的效率，丢掉深度思考'];
-    aiAdvice = ['用AI提效没问题，但记得「关掉AI自己再过一遍」', '设定底线：哪些事绝对不让AI替你做', '定期停下来问自己：除了结果，我还学到了什么'];
-  } else if (moralTop >= 1) {
-    type = '⚖️ 价值坚守型';
-    desc = '你内心有清晰的对错标准，看重诚实和问心无愧。对你来说，「做得对」比「做得快、做得好」更重要。';
-    strengths = ['底线清晰，不容易被诱惑带偏', '靠谱、值得信任，人际关系更稳', '做选择时不容易纠结，有自己的标尺'];
-    risks = ['可能过于保守，错过一些新工具的红利', '容易用自己的标准要求别人，产生冲突'];
-    aiAdvice = ['先明确自己的AI使用底线，再去尝试工具', '重点关注AI的「边界」和「风险」', '用AI帮你看到不同观点，但最终判断留给自己'];
-  } else if (socialTop >= 1) {
-    type = '🤝 群体适配型';
-    desc = '你很在意周围人的看法，希望和大家保持一致，不想被批评、不想落后于人。你对环境的感知力很强，擅长适应集体。';
-    strengths = ['共情力强，擅长体察别人的感受', '适应能力好，能快速融入新环境', '在意他人评价，反而会更自律'];
-    risks = ['容易被别人的节奏带着走，忽略自己真正想要什么', '从众心理强，容易跟风滥用AI', '信息茧房对你的影响会更大'];
-    aiAdvice = ['主动让AI给你看「不同立场的观点」，打破茧房', '不要因为「大家都在用」就盲目跟风', '定期和自己对话：这是我想要的，还是别人想要的'];
-  } else {
-    type = '🔍 多元平衡型';
-    desc = '你的价值排序比较均衡，不会只盯着某一个方面。你既想要结果，也在意过程；既关注自己，也在意他人，是比较成熟的状态。';
-    strengths = ['适应力强，能在不同场景中调整自己', '不容易走极端，心态更平稳'];
-    risks = ['可能目标感不够强，容易分散精力'];
-    aiAdvice = ['用AI帮你聚焦重点，避免精力分散', '定期梳理优先级，不要什么都想要'];
-  }
-
-  let cheatRisk, cheatDesc;
-  if (bottom3.includes('要诚实') || bottom3.includes('问心无愧')) {
-    cheatRisk = '⚠️ 偏高';
-    cheatDesc = '你对捷径和效率的接受度较高，容易被「快速成功」「超高回报」的话术吸引。建议凡事多问一句：真的有这么好吗？';
-  } else if (top3.includes('省时间') || top3.includes('图轻松')) {
-    cheatRisk = '⚡ 中等';
-    cheatDesc = '你看重效率和省事，骗子常用的「省时省力」套路容易打动你。记得提醒自己：太省事的事，往往有坑。';
-  } else {
-    cheatRisk = '✅ 较低';
-    cheatDesc = '你内心有清晰的底线和判断，不容易被短期诱惑带偏，防骗免疫力较强。继续保持你的节奏和原则。';
-  }
-
-  return renderStarCard(data, type, desc, strengths, risks, aiAdvice, cheatRisk, cheatDesc);
-}
-
-/* ===== 球星卡渲染 ===== */
-const DIMS = [
-  { key: '成长力', cards: ['真学会', '学到真本事', '享受过程', '成就感'] },
-  { key: '诚信度', cards: ['要诚实', '问心无愧'] },
-  { key: '目标感', cards: ['考高分', '不落后'] },
-  { key: '效率观', cards: ['省时间', '图轻松'] },
-  { key: '集体感', cards: ['和大家一样', '不挨批'] }
-];
-
-const TYPE_COLOR = {
-  '成长型内核': '#52c41a',
-  '目标驱动型': '#FF7A45',
-  '价值坚守型': '#9254DE',
-  '群体适配型': '#13C2C2',
-  '多元平衡型': '#4F8EF7'
-};
-
-// 由排序结果计算五维（1-5）
+// ========== 五维计算 ==========
 function computeDims(rank) {
   const n = rank.length;
   return DIMS.map(d => {
     const idxs = [];
     rank.forEach((c, i) => { if (d.cards.indexOf(c) >= 0) idxs.push(i); });
-    if (!idxs.length) return 3;
+    if (!idxs.length) return 3;                 // 该维度一张没选 → 中性
     let sum = 0;
     idxs.forEach(i => { sum += (n > 1 ? i / (n - 1) : 0); });
-    const avg = sum / idxs.length;          // 0 = 最看重
-    const v = 5 - 4 * avg;
-    return Math.round(v * 10) / 10;
+    const avg = sum / idxs.length;              // 0 = 最看重
+    return Math.round((5 - 4 * avg) * 10) / 10;
   });
 }
 
-// 简单字符串哈希（用于生成稳定的卡通形象）
+function typeIndexOf(dims) {
+  let best = -1, bi = -1, allSame = true;
+  dims.forEach((v, i) => {
+    if (i > 0 && Math.abs(v - dims[0]) > 0.05) allSame = false;
+    if (v > best) { best = v; bi = i; }
+  });
+  if (allSame || best <= 3.2) return -1;       // 都很平均 → 平衡型
+  return bi;
+}
+
+// ========== 类型文案 ==========
+const TYPE_INFO = {
+  '自主': {
+    name: '🧭 自主型', color: '#4F8EF7',
+    desc: '你要的是「我说了算」——AI 什么时候用、怎么用，你希望自己决定，不喜欢被一刀切地规定。这份自主意识是好事，它让你不会盲从。',
+    strengths: ['有主见，不容易被同伴或广告带着走', '愿意主动探索工具，上手快', '对自己有要求，不完全依赖外界推动'],
+    risks: ['「我自己能判断」有时会高估自己的免疫力', '容易忽略规则背后的风险（考试、版权、隐私）', '自主过了头 → 真出问题时反而不告诉大人'],
+    advice: ['给自己划一条明确的线：哪些事用 AI、哪些绝不用', '不确定的场景，先问再用，而不是先用再解释', '把「我做主」变成「我负责」——用 AI 做的事，结果你担']
+  },
+  '成长': {
+    name: '🌱 成长型', color: '#52c41a',
+    desc: '你最看重「真的学会」——不只是交上去，而是关掉 AI 也能讲明白。在答案随手可得的时代，这种坚持很稀缺。',
+    strengths: ['内驱力强，不容易被短期分数带偏', '底子扎实，越到后面越省力', '抗挫折能力好，愿意啃硬骨头'],
+    risks: ['节奏偏慢，短期分数可能不如「会用 AI」的同学', '容易对靠 AI 提分的同学产生不公平感', '可能低估 AI 作为学习工具的价值'],
+    advice: ['把 AI 当「讲解老师」：让它一步步讲，别直接要答案', '用 AI 生成变式题，检验自己是不是真会了', '定期做一次「无 AI 自测」，确认能力是自己的']
+  },
+  '效率': {
+    name: '⚡ 效率型', color: '#FF7A45',
+    desc: '你看重省时省力，希望快点搞定。这本身没错——AI 最大的价值就是提效。但效率型最容易在「只求交差」这条路上滑出去。',
+    strengths: ['执行力强，做事不拖', '对工具敏感，能快速上手新东西', '目标明确，不把精力浪费在没用的地方'],
+    risks: ['容易把「完成」当成「学会」', '长期跳过思考，能力会悄悄退化，自己察觉不到', '遇到需要慢功夫的任务容易放弃'],
+    advice: ['给自己设「AI 冷静期」：拿到答案先合上，复述一遍再打开', '每周留一次完全不用 AI 完成作业，检验真实水平', '用 AI 出初稿可以，最后一遍必须自己重写']
+  },
+  '归属': {
+    name: '🤝 归属型', color: '#13C2C2',
+    desc: '你很在意同伴——不想被落下，也愿意和大家一起研究。这很真实，青春期的同伴影响本来就最强。',
+    strengths: ['共情力强，能感知集体的氛围', '愿意交流，学东西快', '在团队里是黏合剂'],
+    risks: ['容易因为「大家都在用」而跟风', '别人用得狠，你也跟着用狠', '不太敢做「第一个不用 AI」的人'],
+    advice: ['把「一起研究」变成优势：和同学互相出题考对方', '遇到大家都在做的事，先问一句：这真的有用吗？', '找一个「一起做难事」的小圈子，而不是「一起抄捷径」']
+  },
+  '底线': {
+    name: '⚖️ 底线型', color: '#9254DE',
+    desc: '你在意「这是不是我自己写的」和「会不会被骗」。在 AI 会一本正经胡说八道的时代，这种警觉很值钱。',
+    strengths: ['底线清晰，不容易被捷径诱惑', '有怀疑意识，不容易被忽悠', '值得信任，老师家长更放心'],
+    risks: ['可能因为怕出错而不敢用新工具', '容易用自己的标准要求别人，产生冲突', '过度谨慎 → 错过合理使用 AI 的红利'],
+    advice: ['把底线写下来：哪些绝不做（代写作业、伪造材料）', '练「三问」：AI 说的有依据吗？我能验证吗？出错谁负责？', '在安全范围内试错，别因为怕就完全不用']
+  },
+  '平衡': {
+    name: '🔍 平衡型', color: '#8C8C8C',
+    desc: '你的排序比较均衡，没有特别极端的一项。说明你还在观察和比较，也可能还在形成自己的判断——这本身是正常的。',
+    strengths: ['心态稳，不容易走极端', '能同时看到好处和风险'],
+    risks: ['目标不够聚焦，容易被外界带走'],
+    advice: ['给自己定一个明确的「使用原则」，比什么都重要', '挑一件最在意的事，先把它做扎实']
+  }
+};
+
+// ========== 球探评语 ==========
+function scoutLine(typeKey, moralScore) {
+  const map = {
+    '自主': '球探评语：自主型选手，战术自己定，不轻易被带节奏。',
+    '成长': '球探评语：内驱型选手，成长曲线陡，肯在基本功上下功夫。',
+    '效率': '球探评语：快攻型选手，出手果断；需警惕「只看比分不看过程」。',
+    '归属': '球探评语：团队型球员，视野好、串联强；注意别被队伍节奏带走。',
+    '底线': '球探评语：防守型基石，站位稳、不轻易失位。',
+    '平衡': '球探评语：全能型，暂无明显短板，建议强化一项专项武器。'
+  };
+  let anti = '较低';
+  if (moralScore < 2.5) anti = '偏高';
+  else if (moralScore < 3.6) anti = '中等';
+  return (map[typeKey] || map['平衡']) + ' 防骗抗性：' + anti + '。';
+}
+
+// ========== 卡通头像 ==========
 function hashSeed(str) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) {
@@ -788,10 +825,8 @@ function hashSeed(str) {
   return Math.abs(h);
 }
 
-// 卡通头像（SVG，按姓名哈希稳定生成）
-function makeAvatar(name, typeName) {
+function makeAvatar(name, color) {
   const seed = hashSeed(name);
-  const color = TYPE_COLOR[typeName] || '#4F8EF7';
   const skin = ['#F6D2B4', '#EFC09A', '#E8B08A'][seed % 3];
   const hairColor = ['#2C2F33', '#3B2A20', '#4A3B2A', '#1F2328'][(seed >> 3) % 4];
   const hairStyle = (seed >> 5) % 4;
@@ -812,7 +847,7 @@ function makeAvatar(name, typeName) {
             <circle cx="50" cy="14" r="7" fill="${hairColor}"/>`;
   }
 
-  const glasses = hasGlass ? `
+  const face = hasGlass ? `
     <g stroke="#38404d" stroke-width="1.8" fill="none">
       <circle cx="42" cy="46" r="7"/><circle cx="58" cy="46" r="7"/>
       <line x1="49" y1="46" x2="51" y2="46"/>
@@ -836,7 +871,7 @@ function makeAvatar(name, typeName) {
     <rect x="44" y="62" width="12" height="12" rx="3" fill="${skin}"/>
     <ellipse cx="50" cy="47" rx="23" ry="25" fill="${skin}"/>
     ${hair}
-    ${glasses}
+    ${face}
     <path d="M43,57 Q50,63 57,57" stroke="#20242b" stroke-width="2.2"
           fill="none" stroke-linecap="round"/>
     <circle cx="34" cy="52" r="3.4" fill="#F3A0A0" opacity="0.45"/>
@@ -844,10 +879,10 @@ function makeAvatar(name, typeName) {
   </svg>`;
 }
 
-// 五维雷达图
+// ========== 雷达图 ==========
 function radarSVG(vals, color) {
   const cx = 90, cy = 90, R = 62;
-  const labels = ['成长力', '诚信度', '目标感', '效率观', '集体感'];
+  const labels = DIMS.map(d => d.key);
   const pt = (r, i) => {
     const a = -Math.PI / 2 + i * 2 * Math.PI / 5;
     return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
@@ -875,77 +910,62 @@ function radarSVG(vals, color) {
   return `<svg viewBox="0 0 180 180" width="100%" height="182">${g}</svg>`;
 }
 
-// 球探报告一句话
-function scoutLine(typeName, cheatRisk) {
-  const map = {
-    '成长型内核': '球探评语：内驱型选手，成长曲线陡，肯在过程里下功夫。',
-    '目标驱动型': '球探评语：终结能力强，目标明确，关键时刻敢出手。',
-    '价值坚守型': '球探评语：防守型基石，底线清晰，不轻易被晃倒。',
-    '群体适配型': '球探评语：团队型球员，视野好、配合意识强。',
-    '多元平衡型': '球探评语：全能型，无明显短板，需强化专项进攻手段。'
-  };
-  return (map[typeName] || '球探评语：发展潜力待观察，建议持续跟踪。') +
-         ' 防骗抗性：' + cheatRisk.replace(/[⚠️⚡✅]\s*/g, '') + '。';
-}
+// ========== 生成画像 ==========
+function buildAnalysis(data) {
+  const rank = data.rank || [];
+  const dims = computeDims(rank);
+  const ti = typeIndexOf(dims);
+  const key = ti >= 0 ? DIMS[ti].key : '平衡';
+  const info = TYPE_INFO[key];
+  const moral = dims[3]; // 底线维度
 
-function renderStarCard(data, type, desc, strengths, risks, aiAdvice, cheatRisk, cheatDesc) {
-  const rank = data.rank;
-  const typeName = type.replace(/^[^一-龥A-Za-z]+/, '').trim();
-  const color = TYPE_COLOR[typeName] || '#4F8EF7';
-  const vals = computeDims(rank);
   const seed = hashSeed(data.name);
   const cardNo = String((seed % 900) + 100);
 
   const rows = DIMS.map((d, i) => `
       <div class="hc-row">
         <span class="lb">${d.key}</span>
-        <span class="bar"><i style="width:${(vals[i] / 5 * 100).toFixed(0)}%"></i></span>
-        <span class="vl">${vals[i].toFixed(1)}</span>
+        <span class="bar"><i style="width:${(dims[i] / 5 * 100).toFixed(0)}%"></i></span>
+        <span class="vl">${dims[i].toFixed(1)}</span>
       </div>`).join('');
 
   const card = `
     <div class="hero-card">
       <div class="hc-top">
-        <div class="hc-avatar">${makeAvatar(data.name, typeName)}</div>
+        <div class="hc-avatar">${makeAvatar(data.name, info.color)}</div>
         <div class="hc-id">
           <div class="hc-name">${data.name}</div>
-          <div class="hc-type">${type}</div>
+          <div class="hc-type">${info.name}</div>
           <div class="hc-no">CARD #${cardNo}</div>
         </div>
       </div>
-      <div class="hc-radar">${radarSVG(vals, color)}</div>
+      <div class="hc-radar">${radarSVG(dims, info.color)}</div>
       <div class="hc-stats">${rows}</div>
-      <div class="hc-quote">${scoutLine(typeName, cheatRisk)}</div>
-    </div>
-  `;
+      <div class="hc-quote">${scoutLine(key, moral)}</div>
+    </div>`;
 
   const detail = `
     <h4>类型解读</h4>
-    <p>${desc}</p>
+    <p>${info.desc}</p>
 
     <h4>核心优势</h4>
-    <ul>${strengths.map(s => `<li>${s}</li>`).join('')}</ul>
+    <ul>${info.strengths.map(s => `<li>${s}</li>`).join('')}</ul>
 
     <h4>需要留意</h4>
-    <ul>${risks.map(r => `<li>${r}</li>`).join('')}</ul>
+    <ul>${info.risks.map(s => `<li>${s}</li>`).join('')}</ul>
 
     <h4>AI 使用建议</h4>
-    <ul>${aiAdvice.map(a => `<li>${a}</li>`).join('')}</ul>
+    <ul>${info.advice.map(s => `<li>${s}</li>`).join('')}</ul>
 
-    <h4>留学防骗提示</h4>
-    <p>风险等级：<strong>${cheatRisk}</strong></p>
-    <p style="font-size:13px;color:#666;">${cheatDesc}</p>
-
-    <h4>完整排序（共 ${rank.length} 张）</h4>
+    <h4>你的排序（共 ${rank.length} 张）</h4>
     <p style="font-size:13px;color:#666;line-height:2.2;">
-      ${rank.map((r, i) => `${i + 1}. ${r}`).join(' ｜ ')}
-    </p>
-  `;
+      ${rank.map((r, i) => `${i + 1}. ${ICONS[r] || ''} ${r}`).join(' ｜ ')}
+    </p>`;
 
   return card + detail;
 }
 
-// 渲染学生列表
+// ========== 学生列表 ==========
 function renderStudentList() {
   const list = document.getElementById('studentList');
   list.innerHTML = '';
@@ -955,23 +975,18 @@ function renderStudentList() {
     const done = !!s.submitted;
     div.innerHTML = `
       <span>${s.name}</span>
-      <span class="${done ? 'done-tag' : 'undone-tag'}">${done ? '已提交' : '未提交'}</span>
-    `;
+      <span class="${done ? 'done-tag' : 'undone-tag'}">${done ? '已提交' : '未提交'}</span>`;
     div.onclick = () => loadStudent(s.name);
     list.appendChild(div);
   });
 }
 
-// 全班汇总
+// ========== 全班汇总 ==========
 function showClassSummary() {
   const doneStudents = students.filter(s => s.submitted && s.rank && s.rank.length >= MIN_CARDS);
   const doneCount = doneStudents.length;
-  if (doneCount === 0) {
-    alert('还没有同学提交排序');
-    return;
-  }
+  if (doneCount === 0) { alert('还没有同学提交排序'); return; }
 
-  // 部分排序的统计：记录每张卡的「提及次数」与「归一化位置（0=最看重）」
   const stat = {};
   CARDS.forEach(c => stat[c] = { count: 0, posSum: 0 });
   doneStudents.forEach(s => {
@@ -985,43 +1000,52 @@ function showClassSummary() {
 
   const sorted = Object.entries(stat)
     .filter(([, v]) => v.count > 0)
-    .map(([card, v]) => ({
-      card,
-      count: v.count,
-      avgPos: v.posSum / v.count
-    }))
+    .map(([card, v]) => ({ card, count: v.count, avgPos: v.posSum / v.count }))
     .sort((a, b) => a.avgPos - b.avgPos);
 
-  let html = `<p>全班共 <strong>${students.length}</strong> 人，已完成 <strong>${doneCount}</strong> 人</p>`;
-  html += '<h4 style="margin:18px 0 10px;color:#4F8EF7;font-size:18px;">全班价值优先级排名（从高到低）</h4>';
-  html += '<ol style="padding-left:28px;line-height:2.2;font-size:16px;">';
+  // 维度平均分
+  const dimAvg = DIMS.map((d, i) => {
+    const vals = doneStudents.map(s => computeDims(s.rank)[i]);
+    return { key: d.key, icon: d.icon, v: vals.reduce((a, b) => a + b, 0) / vals.length };
+  }).sort((a, b) => b.v - a.v);
+
+  let html = `<p>全班共 <strong>${students.length}</strong> 人，已提交 <strong>${doneCount}</strong> 人</p>`;
+
+  html += '<h4 style="margin:16px 0 8px;color:#4F8EF7;font-size:17px;">五维班级均值</h4>';
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+  dimAvg.forEach(d => {
+    html += `<div style="flex:1;min-width:86px;background:#f4f7fc;border-radius:8px;padding:8px;text-align:center;">
+      <div style="font-size:18px;">${d.icon}</div>
+      <div style="font-size:12px;color:#666;">${d.key}</div>
+      <div style="font-weight:800;color:#1a2e4b;">${d.v.toFixed(1)}</div></div>`;
+  });
+  html += '</div>';
+
+  html += '<h4 style="margin:18px 0 8px;color:#4F8EF7;font-size:17px;">卡片优先级（班级）</h4>';
+  html += '<ol style="padding-left:26px;line-height:2;font-size:15px;">';
   sorted.forEach(item => {
-    html += `<li><strong>${item.card}</strong> <span style="color:#999;font-size:13px;">（${item.count} 人提及 · 平均位置 ${Math.round(item.avgPos * 100)}%，越靠前越看重）</span></li>`;
+    html += `<li>${ICONS[item.card] || ''} <strong>${item.card}</strong>
+      <span style="color:#999;font-size:12.5px;">（${item.count} 人选择 · 平均位置 ${Math.round(item.avgPos * 100)}%）</span></li>`;
   });
   html += '</ol>';
 
-  const top3Class = sorted.slice(0,3).map(x => x.card);
-  const bottom3Class = sorted.slice(-3).map(x => x.card);
-  html += '<h4 style="margin:20px 0 10px;color:#FF7A45;font-size:18px;">班级整体画像</h4>';
-  html += `<ul style="line-height:2;padding-left:22px;font-size:15px;">
-    <li>全班最看重的三项：<strong>${top3Class.join('、')}</strong></li>
-    <li>全班最不看重的三项：<strong>${bottom3Class.join('、')}</strong></li>
-  </ul>`;
+  const prompt = `以下是一个国际初中班级 ${doneCount} 位学生关于「AI 时代价值排序」的结果。每人对与自己相关的卡片排序，张数不等。
 
-  const prompt = `以下是一个国际初中班级${doneCount}位学生的价值排序结果（每人只对与自己相关的卡片排序，张数不等），请结合青少年心理发展特点和AI时代教育背景，从教育心理学角度做深度分析，并给出教学建议。
+维度平均分（满分 5）：
+${dimAvg.map(d => `${d.key}：${d.v.toFixed(1)}`).join('\n')}
 
-全班价值优先级从高到低：
-${sorted.map((x,i) => `${i+1}. ${x.card}（${x.count}人提及）`).join('\n')}
+卡片优先级（越靠前越被看重）：
+${sorted.map((x, i) => `${i + 1}. ${x.card}（${x.count}人选择）`).join('\n')}
 
-请分四个部分回答：
-1. 班级整体价值观画像
-2. 潜在的AI使用风险点
-3. 留学场景下的防骗教育重点
-4. 具体可落地的教学与引导建议`;
+请结合青春期心理发展特点（自主 / 胜任 / 归属需求）与当前 AI 使用现实问题，分四部分输出：
+1. 班级整体画像：他们在哪些维度需求强，哪些弱
+2. 潜在风险：结合「效率优先」「同伴从众」两类倾向，指出最可能的 AI 误用形态
+3. 教学切入点：给出 3 个可直接用在课堂上的活动或讨论题
+4. 家校配合：给家长 3 条具体可做的建议`;
 
-  html += '<h4 style="margin:22px 0 10px;color:#9254DE;font-size:18px;">🤖 AI深度分析报告</h4>';
-  html += '<p style="font-size:13px;color:#666;margin-bottom:8px;">点击复制下方提示词，粘贴到豆包/ ChatGPT等AI工具，即可生成完整深度分析报告：</p>';
-  html += `<textarea id="promptText" style="width:100%;height:160px;font-size:13px;padding:10px;border:1px solid #ddd;border-radius:8px;resize:none;line-height:1.6;" readonly>${prompt}</textarea>`;
+  html += '<h4 style="margin:20px 0 8px;color:#9254DE;font-size:17px;">🤖 AI 深度分析</h4>';
+  html += '<p style="font-size:12.5px;color:#666;margin-bottom:8px;">复制下方提示词，粘贴到豆包 / ChatGPT 等工具，生成完整报告：</p>';
+  html += `<textarea id="promptText" style="width:100%;height:170px;font-size:12.5px;padding:10px;border:1px solid #ddd;border-radius:8px;resize:none;line-height:1.6;" readonly>${prompt}</textarea>`;
   html += '<button class="btn btn-primary" style="margin-top:12px;width:auto;padding:10px 28px;" onclick="copyPrompt()">📋 一键复制提示词</button>';
 
   document.getElementById('summaryContent').innerHTML = html;
@@ -1036,37 +1060,40 @@ function copyPrompt() {
   const text = document.getElementById('promptText');
   text.select();
   document.execCommand('copy');
-  alert('已复制提示词，可粘贴到AI工具生成深度分析报告');
+  alert('已复制提示词，可粘贴到 AI 工具生成分析报告');
 }
 
-// 导出全部数据
+// ========== 导出 ==========
 function exportAll() {
-  const doneCount = students.filter(s => s.rank && s.rank.length > 0).length;
-  if (doneCount === 0) {
-    alert('还没有完成排序的数据');
-    return;
-  }
+  const has = students.filter(s => s.rank && s.rank.length > 0).length;
+  if (has === 0) { alert('还没有完成排序的数据'); return; }
   let text = 'AI时代价值排序 · 班级完整数据\n';
   text += '================================\n\n';
+  text += '框架：自主 / 成长 / 效率 / 归属 / 底线（满分 5）\n\n';
   students.forEach(s => {
     text += `【${s.name}】\n`;
     if (s.rank && s.rank.length > 0) {
+      const dims = computeDims(s.rank);
+      const ti = typeIndexOf(dims);
+      const key = ti >= 0 ? DIMS[ti].key : '平衡';
       text += `提交时间：${s.time}　共 ${s.rank.length} 张\n`;
-      text += `排序结果：${s.rank.map((r,i) => `${i+1}.${r}`).join(' → ')}\n`;
+      text += `类型：${TYPE_INFO[key].name}\n`;
+      text += `五维：${DIMS.map((d, i) => `${d.key} ${dims[i].toFixed(1)}`).join(' / ')}\n`;
+      text += `排序：${s.rank.map((r, i) => `${i + 1}.${r}`).join(' → ')}\n`;
     } else {
-      text += '状态：未完成\n';
+      text += '状态：未提交\n';
     }
     text += '\n';
   });
-  
-  const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
+
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = '班级价值排序完整数据.txt';
   a.click();
 }
 
-// 重置全部
+// ========== 重置 ==========
 function clearAll() {
   if (confirm('确定重置所有同学的排序数据吗？此操作不可恢复。')) {
     students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS));
@@ -1077,13 +1104,14 @@ function clearAll() {
     renderCardPool();
     renderRankArea();
     renderStudentList();
-    document.getElementById('analysisContent').innerHTML = 
-      '<div class="empty-tip">选择学生并完成排序后<br>点击「生成AI价值画像」<br>即可查看专属深度分析</div>';
+    document.getElementById('analysisContent').innerHTML =
+      '<div class="empty-tip">选好后点绿色「确认提交」<br>这里会生成专属球星卡</div>';
   }
 }
 
 // 启动
 init();
+
 </script>
 </body>
 </html>
