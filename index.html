@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI时代价值排序 · 课堂大屏版</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html, body {
+    height: 100%;
+    font-family: "Microsoft YaHei", "微软雅黑", sans-serif;
+    background: #f0f2f5;
+    color: #1a2e4b;
+    overflow: hidden;
+  }
+
+  /* 顶部标题栏 */
+  .top-bar {
+    height: 60px;
+    background: #1a2e4b;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+  }
+  .top-bar h1 {
+    font-size: 22px;
+    letter-spacing: 2px;
+    font-weight: 700;
+  }
+  .top-bar .tip {
+    font-size: 14px;
+    opacity: 0.85;
+  }
+
+  /* 主体三栏 */
+  .container {
+    display: grid;
+    grid-template-columns: 260px 1fr 400px;
+    height: calc(100vh - 60px);
+    gap: 14px;
+    padding: 14px;
+  }
+
+  /* 左侧：学生名单 */
+  .panel {
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+  }
+  .panel h2 {
+    font-size: 18px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 3px solid #4F8EF7;
+    color: #1a2e4b;
+  }
+  .student-list {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 12px;
+  }
+  .student-item {
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .student-item:hover { background: #f0f5ff; }
+  .student-item.active {
+    background: #e6f0ff;
+    border-color: #4F8EF7;
+    color: #4F8EF7;
+    font-weight: 700;
+  }
+  .student-item .done-tag {
+    font-size: 11px;
+    background: #52c41a;
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .student-item .undone-tag {
+    font-size: 11px;
+    background: #d9d9d9;
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 8px;
+  }
+  .btn-primary { background: #4F8EF7; color: #fff; }
+  .btn-primary:hover { background: #3a7be8; }
+  .btn-secondary { background: #f5f5f5; color: #555; }
+  .btn-secondary:hover { background: #e8e8e8; }
+  .btn-warn { background: #FF7A45; color: #fff; }
+  .btn-warn:hover { background: #f56a30; }
+
+  /* 中间：主操作区 */
+  .main-panel {
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .name-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .name-display {
+    flex: 1;
+    padding: 12px 16px;
+    background: #f0f5ff;
+    border: 2px solid #4F8EF7;
+    border-radius: 10px;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a2e4b;
+  }
+
+  .section-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 10px 0 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #1a2e4b;
+  }
+  .section-title .sub {
+    font-size: 13px;
+    color: #999;
+    font-weight: normal;
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .card {
+    padding: 22px 10px;
+    background: #f8f9fb;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 19px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .card:hover {
+    border-color: #4F8EF7;
+    background: #f0f5ff;
+    transform: translateY(-3px);
+  }
+  .card.selected {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .card.rank-card {
+    background: #e6f0ff;
+    border-color: #4F8EF7;
+    color: #1a2e4b;
+    position: relative;
+  }
+  .rank-badge {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    width: 32px;
+    height: 32px;
+    background: #FF7A45;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(255,122,69,0.4);
+  }
+
+  .cards-wrap {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .action-bar {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #eee;
+  }
+  .action-bar .btn { flex: 1; margin: 0; }
+
+  /* 右侧：分析结果 */
+  .analysis-panel {
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+  }
+  .analysis-panel h2 {
+    font-size: 18px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 3px solid #FF7A45;
+    color: #1a2e4b;
+  }
+  .analysis-content {
+    flex: 1;
+    overflow-y: auto;
+    font-size: 15px;
+    line-height: 1.8;
+    color: #333;
+    padding-right: 4px;
+  }
+  .analysis-content h4 {
+    font-size: 16px;
+    color: #FF7A45;
+    margin: 14px 0 8px;
+  }
+  .analysis-content p { margin-bottom: 8px; }
+  .analysis-content ul { padding-left: 22px; margin-bottom: 8px; }
+  .analysis-content li { margin-bottom: 5px; }
+
+  .empty-tip {
+    color: #aaa;
+    text-align: center;
+    padding: 60px 20px;
+    font-size: 15px;
+    line-height: 2;
+  }
+
+  /* 弹窗 */
+  .modal-mask {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 720px;
+    max-height: 85vh;
+    padding: 28px;
+    overflow-y: auto;
+    font-size: 15px;
+  }
+  .modal h2 {
+    font-size: 22px;
+    margin-bottom: 18px;
+    color: #1a2e4b;
+  }
+  .close-btn {
+    float: right;
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #999;
+    line-height: 1;
+  }
+</style>
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<div class="top-bar">
+  <h1>🧠 AI时代价值排序 · 课堂互动</h1>
+  <div class="tip">按重要程度依次点击卡片 · 越靠前越重要</div>
+</div>
+
+<div class="container">
+
+  <!-- 左侧：学生名单 -->
+  <div class="panel">
+    <h2>👤 班级学生名单</h2>
+    <div class="student-list" id="studentList"></div>
+    <button class="btn btn-primary" onclick="showClassSummary()">📊 全班汇总分析</button>
+    <button class="btn btn-secondary" onclick="exportAll()">📋 导出全部数据</button>
+    <button class="btn btn-warn" onclick="clearAll()">🗑️ 重置全部</button>
+  </div>
+
+  <!-- 中间：卡片操作 -->
+  <div class="main-panel">
+    <div class="name-row">
+      <div class="name-display" id="studentName">请点击左侧学生姓名开始</div>
+    </div>
+
+    <div class="section-title">
+      <span>📦 待排序卡片</span>
+      <span class="sub">点击卡片 → 加入你的排序</span>
+    </div>
+    <div class="cards-wrap">
+      <div class="card-grid" id="cardPool"></div>
+    </div>
+
+    <div class="section-title">
+      <span>🏆 我的排序（从重要 → 不重要）</span>
+      <span class="sub" id="rankCount">已选 0 / 12</span>
+    </div>
+    <div class="cards-wrap">
+      <div class="card-grid" id="rankArea"></div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-secondary" onclick="undoLast()">↩️ 撤回上一个</button>
+      <button class="btn btn-secondary" onclick="resetRank()">🔄 重新排序</button>
+      <button class="btn btn-primary" onclick="generateAnalysis()">✨ 生成AI价值画像</button>
+    </div>
+  </div>
+
+  <!-- 右侧：分析结果 -->
+  <div class="analysis-panel">
+    <h2>📝 AI智能价值画像</h2>
+    <div class="analysis-content" id="analysisContent">
+      <div class="empty-tip">
+        选择学生并完成排序后<br>
+        点击「生成AI价值画像」<br>
+        即可查看专属深度分析
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 全班汇总弹窗 -->
+<div class="modal-mask" id="summaryModal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeSummary()">×</button>
+    <h2>📊 全班价值排序 · AI汇总分析</h2>
+    <div id="summaryContent"></div>
+  </div>
+</div>
+
+<script>
+// ========== 预设学生名单 ==========
+const DEFAULT_STUDENTS = [
+  { name: '任绎帆 Fiona', rank: [], time: '' },
+  { name: '陈思源 Alice', rank: [], time: '' },
+  { name: '段宜辰 Byron', rank: [], time: '' },
+  { name: '宋卓雯 Lumi', rank: [], time: '' },
+  { name: '胡嘉文 Eason', rank: [], time: '' },
+  { name: '张嘉艺 Eric', rank: [], time: '' },
+  { name: '洪动赫 Henry', rank: [], time: '' },
+  { name: '于志阔 Corey', rank: [], time: '' },
+  { name: '张怡腾 Owen', rank: [], time: '' },
+  { name: '刘世欣 Cindy', rank: [], time: '' },
+  { name: '张高畅 Ethan', rank: [], time: '' },
+  { name: '王渤远 Byron', rank: [], time: '' },
+  { name: '段思涵 Hannah', rank: [], time: '' },
+  { name: '白益冰 Elena', rank: [], time: '' }
+];
+
+// 12个价值维度
+const CARDS = [
+  '考高分', '省时间', '真学会', '要诚实',
+  '图轻松', '成就感', '不挨批', '不落后',
+  '问心无愧', '享受过程', '和大家一样', '学到真本事'
+];
+
+// 全局数据
+let students = [];
+let currentStudent = null;
+let currentRank = [];
+
+// 初始化
+function init() {
+  const saved = localStorage.getItem('ai_value_class_v2');
+  if (saved) {
+    students = JSON.parse(saved);
+  } else {
+    students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS));
+  }
+  renderCardPool();
+  renderStudentList();
+}
+
+// 渲染待选卡片
+function renderCardPool() {
+  const pool = document.getElementById('cardPool');
+  pool.innerHTML = '';
+  CARDS.forEach(card => {
+    if (!currentRank.includes(card)) {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.textContent = card;
+      div.onclick = () => selectCard(card);
+      pool.appendChild(div);
+    }
+  });
+}
+
+// 渲染已排序
+function renderRankArea() {
+  const area = document.getElementById('rankArea');
+  area.innerHTML = '';
+  currentRank.forEach((card, index) => {
+    const div = document.createElement('div');
+    div.className = 'card rank-card';
+    div.innerHTML = `<div class="rank-badge">${index+1}</div>${card}`;
+    div.onclick = () => removeCard(index);
+    area.appendChild(div);
+  });
+  document.getElementById('rankCount').textContent = `已选 ${currentRank.length} / 12`;
+}
+
+// 选卡片
+function selectCard(card) {
+  if (!currentStudent) {
+    alert('请先点击左侧学生姓名');
+    return;
+  }
+  if (currentRank.length >= 12) return;
+  currentRank.push(card);
+  renderCardPool();
+  renderRankArea();
+}
+
+// 移除卡片
+function removeCard(index) {
+  currentRank.splice(index, 1);
+  renderCardPool();
+  renderRankArea();
+}
+
+// 撤回
+function undoLast() {
+  if (currentRank.length > 0) {
+    currentRank.pop();
+    renderCardPool();
+    renderRankArea();
+  }
+}
+
+// 重置当前学生排序
+function resetRank() {
+  if (!currentStudent) return;
+  if (confirm('确定清空当前同学的排序，重新开始吗？')) {
+    currentRank = [];
+    renderCardPool();
+    renderRankArea();
+    document.getElementById('analysisContent').innerHTML = 
+      '<div class="empty-tip">完成排序后<br>点击「生成AI价值画像」<br>即可查看专属深度分析</div>';
+  }
+}
+
+// 加载学生
+function loadStudent(name) {
+  const s = students.find(x => x.name === name);
+  if (!s) return;
+  currentStudent = name;
+  document.getElementById('studentName').textContent = name;
+  currentRank = s.rank ? [...s.rank] : [];
+  renderCardPool();
+  renderRankArea();
+  
+  if (s.rank && s.rank.length >= 8) {
+    document.getElementById('analysisContent').innerHTML = buildAnalysis(s);
+  } else {
+    document.getElementById('analysisContent').innerHTML = 
+      '<div class="empty-tip">完成排序后<br>点击「生成AI价值画像」<br>即可查看专属深度分析</div>';
+  }
+  renderStudentList();
+}
+
+// 生成AI分析
+function generateAnalysis() {
+  if (!currentStudent) {
+    alert('请先选择一位同学');
+    return;
+  }
+  if (currentRank.length < 8) {
+    alert('请至少排8个卡片，分析会更准确');
+    return;
+  }
+
+  const idx = students.findIndex(s => s.name === currentStudent);
+  if (idx >= 0) {
+    students[idx].rank = [...currentRank];
+    students[idx].time = new Date().toLocaleString();
+    localStorage.setItem('ai_value_class_v2', JSON.stringify(students));
+  }
+
+  const analysis = buildAnalysis(students[idx]);
+  document.getElementById('analysisContent').innerHTML = analysis;
+  renderStudentList();
+}
+
+// ========== AI智能分析引擎 ==========
+function buildAnalysis(data) {
+  const rank = data.rank;
+  const top3 = rank.slice(0, 3);
+  const bottom3 = rank.slice(-3);
+  
+  const growthSet = new Set(['真学会', '成就感', '学到真本事', '享受过程']);
+  const resultSet = new Set(['考高分', '不落后', '省时间', '图轻松']);
+  const moralSet = new Set(['要诚实', '问心无愧']);
+  const socialSet = new Set(['和大家一样', '不挨批']);
+
+  const growthTop = top3.filter(x => growthSet.has(x)).length;
+  const resultTop = top3.filter(x => resultSet.has(x)).length;
+  const moralTop = top3.filter(x => moralSet.has(x)).length;
+  const socialTop = top3.filter(x => socialSet.has(x)).length;
+
+  let type = '', desc = '';
+  let strengths = [], risks = [], aiAdvice = [];
+
+  if (growthTop >= 2) {
+    type = '🌱 成长型内核';
+    desc = '你最看重真正的成长和内在收获，而不是表面分数和别人的评价。对你来说，过程本身就是意义，学到真东西比一时的成绩更重要。';
+    strengths = ['长期驱动力强，不容易被短期诱惑带偏', '抗挫折能力好，更能接受挑战和失败', '对自己的要求来自内心，不是外界压力'];
+    risks = ['可能会忽视应试技巧，在分数上吃亏', '节奏偏慢，在快节奏竞争中容易焦虑'];
+    aiAdvice = ['AI适合当你的「讲解老师」，不要当「答案工具」', '多用AI拓展知识边界，少用AI抄捷径', '让AI做你的「反方辩手」，挑战你的观点'];
+  } else if (resultTop >= 2) {
+    type = '⚡ 目标驱动型';
+    desc = '你目标感很强，看重效率和结果，知道自己要什么，也愿意为之付出。你做事讲究性价比，不喜欢做没用的事。';
+    strengths = ['执行力强，目标明确，做事不拖沓', '适应竞争环境，能快速抓住重点', '对资源和时间的敏感度很高'];
+    risks = ['容易为了结果走捷径，忽略长期积累', '太在意输赢，容易被焦虑推着走', '可能过度依赖AI的效率，丢掉深度思考'];
+    aiAdvice = ['用AI提效没问题，但记得「关掉AI自己再过一遍」', '设定底线：哪些事绝对不让AI替你做', '定期停下来问自己：除了结果，我还学到了什么'];
+  } else if (moralTop >= 1) {
+    type = '⚖️ 价值坚守型';
+    desc = '你内心有清晰的对错标准，看重诚实和问心无愧。对你来说，「做得对」比「做得快、做得好」更重要。';
+    strengths = ['底线清晰，不容易被诱惑带偏', '靠谱、值得信任，人际关系更稳', '做选择时不容易纠结，有自己的标尺'];
+    risks = ['可能过于保守，错过一些新工具的红利', '容易用自己的标准要求别人，产生冲突'];
+    aiAdvice = ['先明确自己的AI使用底线，再去尝试工具', '重点关注AI的「边界」和「风险」', '用AI帮你看到不同观点，但最终判断留给自己'];
+  } else if (socialTop >= 1) {
+    type = '🤝 群体适配型';
+    desc = '你很在意周围人的看法，希望和大家保持一致，不想被批评、不想落后于人。你对环境的感知力很强，擅长适应集体。';
+    strengths = ['共情力强，擅长体察别人的感受', '适应能力好，能快速融入新环境', '在意他人评价，反而会更自律'];
+    risks = ['容易被别人的节奏带着走，忽略自己真正想要什么', '从众心理强，容易跟风滥用AI', '信息茧房对你的影响会更大'];
+    aiAdvice = ['主动让AI给你看「不同立场的观点」，打破茧房', '不要因为「大家都在用」就盲目跟风', '定期和自己对话：这是我想要的，还是别人想要的'];
+  } else {
+    type = '🔍 多元平衡型';
+    desc = '你的价值排序比较均衡，不会只盯着某一个方面。你既想要结果，也在意过程；既关注自己，也在意他人，是比较成熟的状态。';
+    strengths = ['适应力强，能在不同场景中调整自己', '不容易走极端，心态更平稳'];
+    risks = ['可能目标感不够强，容易分散精力'];
+    aiAdvice = ['用AI帮你聚焦重点，避免精力分散', '定期梳理优先级，不要什么都想要'];
+  }
+
+  let cheatRisk, cheatDesc;
+  if (bottom3.includes('要诚实') || bottom3.includes('问心无愧')) {
+    cheatRisk = '⚠️ 偏高';
+    cheatDesc = '你对捷径和效率的接受度较高，容易被「快速成功」「超高回报」的话术吸引。建议凡事多问一句：真的有这么好吗？';
+  } else if (top3.includes('省时间') || top3.includes('图轻松')) {
+    cheatRisk = '⚡ 中等';
+    cheatDesc = '你看重效率和省事，骗子常用的「省时省力」套路容易打动你。记得提醒自己：太省事的事，往往有坑。';
+  } else {
+    cheatRisk = '✅ 较低';
+    cheatDesc = '你内心有清晰的底线和判断，不容易被短期诱惑带偏，防骗免疫力较强。继续保持你的节奏和原则。';
+  }
+
+  return `
+    <h4>你的价值类型</h4>
+    <p><strong style="font-size:18px;">${type}</strong></p>
+    <p>${desc}</p>
+
+    <h4>你的核心优势</h4>
+    <ul>${strengths.map(s => `<li>${s}</li>`).join('')}</ul>
+
+    <h4>需要留意的倾向</h4>
+    <ul>${risks.map(r => `<li>${r}</li>`).join('')}</ul>
+
+    <h4>AI使用专属建议</h4>
+    <ul>${aiAdvice.map(a => `<li>${a}</li>`).join('')}</ul>
+
+    <h4>留学防骗风险提示</h4>
+    <p>风险等级：<strong>${cheatRisk}</strong></p>
+    <p style="font-size:13px;color:#666;">${cheatDesc}</p>
+
+    <h4>你的完整排序</h4>
+    <p style="font-size:13px;color:#666;line-height:2.2;">
+      ${rank.map((r,i) => `${i+1}. ${r}`).join(' ｜ ')}
+    </p>
+  `;
+}
+
+// 渲染学生列表
+function renderStudentList() {
+  const list = document.getElementById('studentList');
+  list.innerHTML = '';
+  students.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'student-item' + (currentStudent === s.name ? ' active' : '');
+    const done = s.rank && s.rank.length >= 8;
+    div.innerHTML = `
+      <span>${s.name}</span>
+      <span class="${done ? 'done-tag' : 'undone-tag'}">${done ? '已完成' : '未完成'}</span>
+    `;
+    div.onclick = () => loadStudent(s.name);
+    list.appendChild(div);
+  });
+}
+
+// 全班汇总
+function showClassSummary() {
+  const doneCount = students.filter(s => s.rank && s.rank.length >= 8).length;
+  if (doneCount === 0) {
+    alert('还没有同学完成排序');
+    return;
+  }
+
+  const scoreMap = {};
+  CARDS.forEach(c => scoreMap[c] = 0);
+  
+  const doneStudents = students.filter(s => s.rank && s.rank.length >= 8);
+  doneStudents.forEach(s => {
+    s.rank.forEach((card, idx) => {
+      scoreMap[card] += (12 - idx);
+    });
+  });
+
+  const sorted = Object.entries(scoreMap)
+    .sort((a,b) => b[1] - a[1])
+    .map(([card, score]) => ({
+      card,
+      avgRank: (13 - score / doneStudents.length).toFixed(1)
+    }));
+
+  let html = `<p>全班共 <strong>${students.length}</strong> 人，已完成 <strong>${doneCount}</strong> 人</p>`;
+  html += '<h4 style="margin:18px 0 10px;color:#4F8EF7;font-size:18px;">全班价值优先级排名（从高到低）</h4>';
+  html += '<ol style="padding-left:28px;line-height:2.2;font-size:16px;">';
+  sorted.forEach(item => {
+    html += `<li><strong>${item.card}</strong> <span style="color:#999;font-size:13px;">（平均第 ${item.avgRank} 位）</span></li>`;
+  });
+  html += '</ol>';
+
+  const top3Class = sorted.slice(0,3).map(x => x.card);
+  const bottom3Class = sorted.slice(-3).map(x => x.card);
+  html += '<h4 style="margin:20px 0 10px;color:#FF7A45;font-size:18px;">班级整体画像</h4>';
+  html += `<ul style="line-height:2;padding-left:22px;font-size:15px;">
+    <li>全班最看重的三项：<strong>${top3Class.join('、')}</strong></li>
+    <li>全班最不看重的三项：<strong>${bottom3Class.join('、')}</strong></li>
+  </ul>`;
+
+  const prompt = `以下是一个国际初中班级${doneCount}位学生的价值排序结果，请结合青少年心理发展特点和AI时代教育背景，从教育心理学角度做深度分析，并给出教学建议。
+
+全班价值优先级从高到低：
+${sorted.map((x,i) => `${i+1}. ${x.card}`).join('\n')}
+
+请分四个部分回答：
+1. 班级整体价值观画像
+2. 潜在的AI使用风险点
+3. 留学场景下的防骗教育重点
+4. 具体可落地的教学与引导建议`;
+
+  html += '<h4 style="margin:22px 0 10px;color:#9254DE;font-size:18px;">🤖 AI深度分析报告</h4>';
+  html += '<p style="font-size:13px;color:#666;margin-bottom:8px;">点击复制下方提示词，粘贴到豆包/ ChatGPT等AI工具，即可生成完整深度分析报告：</p>';
+  html += `<textarea id="promptText" style="width:100%;height:160px;font-size:13px;padding:10px;border:1px solid #ddd;border-radius:8px;resize:none;line-height:1.6;" readonly>${prompt}</textarea>`;
+  html += '<button class="btn btn-primary" style="margin-top:12px;width:auto;padding:10px 28px;" onclick="copyPrompt()">📋 一键复制提示词</button>';
+
+  document.getElementById('summaryContent').innerHTML = html;
+  document.getElementById('summaryModal').classList.add('show');
+}
+
+function closeSummary() {
+  document.getElementById('summaryModal').classList.remove('show');
+}
+
+function copyPrompt() {
+  const text = document.getElementById('promptText');
+  text.select();
+  document.execCommand('copy');
+  alert('已复制提示词，可粘贴到AI工具生成深度分析报告');
+}
+
+// 导出全部数据
+function exportAll() {
+  const doneCount = students.filter(s => s.rank && s.rank.length > 0).length;
+  if (doneCount === 0) {
+    alert('还没有完成排序的数据');
+    return;
+  }
+  let text = 'AI时代价值排序 · 班级完整数据\n';
+  text += '================================\n\n';
+  students.forEach(s => {
+    text += `【${s.name}】\n`;
+    if (s.rank && s.rank.length > 0) {
+      text += `完成时间：${s.time}\n`;
+      text += `排序结果：${s.rank.map((r,i) => `${i+1}.${r}`).join(' → ')}\n`;
+    } else {
+      text += '状态：未完成\n';
+    }
+    text += '\n';
+  });
+  
+  const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '班级价值排序完整数据.txt';
+  a.click();
+}
+
+// 重置全部
+function clearAll() {
+  if (confirm('确定重置所有同学的排序数据吗？此操作不可恢复。')) {
+    students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS));
+    localStorage.removeItem('ai_value_class_v2');
+    currentStudent = null;
+    currentRank = [];
+    document.getElementById('studentName').textContent = '请点击左侧学生姓名开始';
+    renderCardPool();
+    renderRankArea();
+    renderStudentList();
+    document.getElementById('analysisContent').innerHTML = 
+      '<div class="empty-tip">选择学生并完成排序后<br>点击「生成AI价值画像」<br>即可查看专属深度分析</div>';
+  }
+}
+
+// 启动
+init();
+</script>
+</body>
+</html>
