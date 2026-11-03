@@ -128,6 +128,10 @@
   .btn-secondary:hover { background: #e8e8e8; }
   .btn-warn { background: #FF7A45; color: #fff; }
   .btn-warn:hover { background: #f56a30; }
+  .btn-submit { background: #52c41a; color: #fff; }
+  .btn-submit:hover { background: #45a817; }
+  .btn-submit.submitted { background: #9ad97a; }
+  .btn-submit:disabled { background: #d9d9d9; cursor: not-allowed; }
 
   /* 中间：主操作区 */
   .main-panel {
@@ -354,24 +358,24 @@
 
     <div class="section-title">
       <span>📦 待排序卡片</span>
-      <span class="sub">点击卡片 → 加入你的排序</span>
+      <span class="sub">点卡片 → 加入排序（只选与你相关的）</span>
     </div>
     <div class="cards-wrap">
       <div class="card-grid" id="cardPool"></div>
     </div>
 
     <div class="section-title">
-      <span>🏆 我的排序（从重要 → 不重要）</span>
-      <span class="sub" id="rankCount">已选 0 / 12</span>
+      <span>🏆 我的排序（从重要 → 不重要）<span style="font-size:13px;color:#999;font-weight:400;"> · 选相关的就行，不必选满</span></span>
+      <span class="sub" id="rankCount">已选 0 张</span>
     </div>
     <div class="cards-wrap">
       <div class="card-grid" id="rankArea"></div>
     </div>
 
     <div class="action-bar">
-      <button class="btn btn-secondary" onclick="undoLast()">↩️ 撤回上一个</button>
-      <button class="btn btn-secondary" onclick="resetRank()">🔄 重新排序</button>
-      <button class="btn btn-primary" onclick="generateAnalysis()">✨ 生成AI价值画像</button>
+      <button class="btn btn-secondary" onclick="undoLast()">↩️ 撤回</button>
+      <button class="btn btn-secondary" onclick="resetRank()">🔄 重排</button>
+      <button class="btn btn-submit" id="submitBtn" onclick="submitRank()">✅ 确认提交</button>
     </div>
   </div>
 
@@ -382,8 +386,8 @@
     <div class="analysis-content" id="analysisContent">
       <div class="empty-tip">
         👈 先点左侧同学<br>
-        👆 再按重要程度点卡片（至少 8 个）<br>
-        最后点上方蓝色按钮生成画像
+        👆 按重要程度点卡片（≥3 张即可，不必选满）<br>
+        最后点绿色「确认提交」生成画像
       </div>
     </div>
   </div>
@@ -438,6 +442,10 @@ function init() {
   } else {
     students = JSON.parse(JSON.stringify(DEFAULT_STUDENTS));
   }
+  // 旧数据迁移：没有 submitted 字段的，按原来 8 张判定
+  students.forEach(st => {
+    if (st.submitted === undefined) st.submitted = !!(st.rank && st.rank.length >= 8);
+  });
   renderCardPool();
   renderStudentList();
 }
@@ -468,7 +476,9 @@ function renderRankArea() {
     div.onclick = () => removeCard(index);
     area.appendChild(div);
   });
-  document.getElementById('rankCount').textContent = `已选 ${currentRank.length} / 12`;
+  const n = currentRank.length;
+  const hint = n === 0 ? '已选 0 张' : (n < 3 ? `已选 ${n} 张 · 至少 3 张` : `已选 ${n} 张 · 可提交`);
+  document.getElementById('rankCount').textContent = hint;
 }
 
 // 选卡片
@@ -521,7 +531,7 @@ function loadStudent(name) {
   renderCardPool();
   renderRankArea();
   
-  if (s.rank && s.rank.length >= 8) {
+  if (s.submitted && s.rank && s.rank.length >= 3) {
     document.getElementById('analysisContent').innerHTML = buildAnalysis(s);
   } else {
     document.getElementById('analysisContent').innerHTML = 
@@ -530,36 +540,67 @@ function loadStudent(name) {
   renderStudentList();
 }
 
-// 生成AI分析
-function generateAnalysis() {
+// 最低张数：选 3 张即可出画像（不必选满 12 张）
+const MIN_CARDS = 3;
+
+// 保存并生成画像（确认提交 / 右侧生成 共用）
+function saveAndRender(options) {
   const box = document.getElementById('analysisContent');
+  const silent = options && options.silent;
+
   if (!currentStudent) {
     box.innerHTML = '<div class="empty-tip">👉 请先在左侧点击一位同学<br><br>再回到中间按重要程度点击卡片</div>';
-    return;
+    return false;
   }
-  if (currentRank.length < 8) {
-    const lack = 8 - currentRank.length;
-    box.innerHTML = `<div class="empty-tip">还差 <strong style="color:#FF7A45;font-size:22px;">${lack}</strong> 个卡片<br><br>当前已选 ${currentRank.length} / 12<br>至少排 8 个才能生成画像<br><br><span style="font-size:13px;">点击上方卡片继续</span></div>`;
-    return;
+  if (currentRank.length < MIN_CARDS) {
+    const lack = MIN_CARDS - currentRank.length;
+    box.innerHTML = `<div class="empty-tip">还差 <strong style="color:#FF7A45;font-size:22px;">${lack}</strong> 张卡片<br><br>当前已选 ${currentRank.length} 张<br>选满 ${MIN_CARDS} 张即可提交<br><br><span style="font-size:13px;">只选与你相关的也可以</span></div>`;
+    return false;
   }
 
   const idx = students.findIndex(s => s.name === currentStudent);
   if (idx >= 0) {
     students[idx].rank = [...currentRank];
+    students[idx].submitted = true;
     students[idx].time = new Date().toLocaleString();
     localStorage.setItem('ai_value_class_v2', JSON.stringify(students));
+    box.innerHTML = buildAnalysis(students[idx]);
   }
-
-  const analysis = buildAnalysis(students[idx]);
-  document.getElementById('analysisContent').innerHTML = analysis;
   renderStudentList();
+  if (!silent) flashSubmitBtn();
+  return true;
+}
+
+function flashSubmitBtn() {
+  const b = document.getElementById('submitBtn');
+  if (!b) return;
+  b.textContent = '✅ 已提交';
+  b.classList.add('submitted');
+  setTimeout(() => {
+    b.textContent = '✅ 确认提交';
+    b.classList.remove('submitted');
+  }, 1600);
+}
+
+// 确认提交（中间栏底部）
+function submitRank() {
+  saveAndRender();
+}
+
+// 生成画像（右侧按钮）
+function generateAnalysis() {
+  saveAndRender({ silent: true });
 }
 
 // ========== AI智能分析引擎 ==========
 function buildAnalysis(data) {
   const rank = data.rank;
-  const top3 = rank.slice(0, 3);
-  const bottom3 = rank.slice(-3);
+  const n = rank.length;
+  // 按已选张数自适应：取前/后各 k 张（k 随总数变化，最少 1 张）
+  const k = Math.max(1, Math.min(3, Math.floor(n / 3)));
+  const top3 = rank.slice(0, k);
+  const bottom3 = rank.slice(-k);
+  const need = Math.max(1, Math.ceil(k * 0.6));
   
   const growthSet = new Set(['真学会', '成就感', '学到真本事', '享受过程']);
   const resultSet = new Set(['考高分', '不落后', '省时间', '图轻松']);
@@ -574,13 +615,13 @@ function buildAnalysis(data) {
   let type = '', desc = '';
   let strengths = [], risks = [], aiAdvice = [];
 
-  if (growthTop >= 2) {
+  if (growthTop >= need) {
     type = '🌱 成长型内核';
     desc = '你最看重真正的成长和内在收获，而不是表面分数和别人的评价。对你来说，过程本身就是意义，学到真东西比一时的成绩更重要。';
     strengths = ['长期驱动力强，不容易被短期诱惑带偏', '抗挫折能力好，更能接受挑战和失败', '对自己的要求来自内心，不是外界压力'];
     risks = ['可能会忽视应试技巧，在分数上吃亏', '节奏偏慢，在快节奏竞争中容易焦虑'];
     aiAdvice = ['AI适合当你的「讲解老师」，不要当「答案工具」', '多用AI拓展知识边界，少用AI抄捷径', '让AI做你的「反方辩手」，挑战你的观点'];
-  } else if (resultTop >= 2) {
+  } else if (resultTop >= need) {
     type = '⚡ 目标驱动型';
     desc = '你目标感很强，看重效率和结果，知道自己要什么，也愿意为之付出。你做事讲究性价比，不喜欢做没用的事。';
     strengths = ['执行力强，目标明确，做事不拖沓', '适应竞争环境，能快速抓住重点', '对资源和时间的敏感度很高'];
@@ -636,7 +677,7 @@ function buildAnalysis(data) {
     <p>风险等级：<strong>${cheatRisk}</strong></p>
     <p style="font-size:13px;color:#666;">${cheatDesc}</p>
 
-    <h4>你的完整排序</h4>
+    <h4>你的完整排序（共 ${rank.length} 张）</h4>
     <p style="font-size:13px;color:#666;line-height:2.2;">
       ${rank.map((r,i) => `${i+1}. ${r}`).join(' ｜ ')}
     </p>
@@ -650,10 +691,10 @@ function renderStudentList() {
   students.forEach(s => {
     const div = document.createElement('div');
     div.className = 'student-item' + (currentStudent === s.name ? ' active' : '');
-    const done = s.rank && s.rank.length >= 8;
+    const done = !!s.submitted;
     div.innerHTML = `
       <span>${s.name}</span>
-      <span class="${done ? 'done-tag' : 'undone-tag'}">${done ? '已完成' : '未完成'}</span>
+      <span class="${done ? 'done-tag' : 'undone-tag'}">${done ? '已提交' : '未提交'}</span>
     `;
     div.onclick = () => loadStudent(s.name);
     list.appendChild(div);
@@ -662,34 +703,39 @@ function renderStudentList() {
 
 // 全班汇总
 function showClassSummary() {
-  const doneCount = students.filter(s => s.rank && s.rank.length >= 8).length;
+  const doneStudents = students.filter(s => s.submitted && s.rank && s.rank.length >= MIN_CARDS);
+  const doneCount = doneStudents.length;
   if (doneCount === 0) {
-    alert('还没有同学完成排序');
+    alert('还没有同学提交排序');
     return;
   }
 
-  const scoreMap = {};
-  CARDS.forEach(c => scoreMap[c] = 0);
-  
-  const doneStudents = students.filter(s => s.rank && s.rank.length >= 8);
+  // 部分排序的统计：记录每张卡的「提及次数」与「归一化位置（0=最看重）」
+  const stat = {};
+  CARDS.forEach(c => stat[c] = { count: 0, posSum: 0 });
   doneStudents.forEach(s => {
+    const n = s.rank.length;
     s.rank.forEach((card, idx) => {
-      scoreMap[card] += (12 - idx);
+      if (!stat[card]) return;
+      stat[card].count++;
+      stat[card].posSum += (n > 1 ? idx / (n - 1) : 0);
     });
   });
 
-  const sorted = Object.entries(scoreMap)
-    .sort((a,b) => b[1] - a[1])
-    .map(([card, score]) => ({
+  const sorted = Object.entries(stat)
+    .filter(([, v]) => v.count > 0)
+    .map(([card, v]) => ({
       card,
-      avgRank: (13 - score / doneStudents.length).toFixed(1)
-    }));
+      count: v.count,
+      avgPos: v.posSum / v.count
+    }))
+    .sort((a, b) => a.avgPos - b.avgPos);
 
   let html = `<p>全班共 <strong>${students.length}</strong> 人，已完成 <strong>${doneCount}</strong> 人</p>`;
   html += '<h4 style="margin:18px 0 10px;color:#4F8EF7;font-size:18px;">全班价值优先级排名（从高到低）</h4>';
   html += '<ol style="padding-left:28px;line-height:2.2;font-size:16px;">';
   sorted.forEach(item => {
-    html += `<li><strong>${item.card}</strong> <span style="color:#999;font-size:13px;">（平均第 ${item.avgRank} 位）</span></li>`;
+    html += `<li><strong>${item.card}</strong> <span style="color:#999;font-size:13px;">（${item.count} 人提及 · 平均位置 ${Math.round(item.avgPos * 100)}%，越靠前越看重）</span></li>`;
   });
   html += '</ol>';
 
@@ -701,10 +747,10 @@ function showClassSummary() {
     <li>全班最不看重的三项：<strong>${bottom3Class.join('、')}</strong></li>
   </ul>`;
 
-  const prompt = `以下是一个国际初中班级${doneCount}位学生的价值排序结果，请结合青少年心理发展特点和AI时代教育背景，从教育心理学角度做深度分析，并给出教学建议。
+  const prompt = `以下是一个国际初中班级${doneCount}位学生的价值排序结果（每人只对与自己相关的卡片排序，张数不等），请结合青少年心理发展特点和AI时代教育背景，从教育心理学角度做深度分析，并给出教学建议。
 
 全班价值优先级从高到低：
-${sorted.map((x,i) => `${i+1}. ${x.card}`).join('\n')}
+${sorted.map((x,i) => `${i+1}. ${x.card}（${x.count}人提及）`).join('\n')}
 
 请分四个部分回答：
 1. 班级整体价值观画像
@@ -744,7 +790,7 @@ function exportAll() {
   students.forEach(s => {
     text += `【${s.name}】\n`;
     if (s.rank && s.rank.length > 0) {
-      text += `完成时间：${s.time}\n`;
+      text += `提交时间：${s.time}　共 ${s.rank.length} 张\n`;
       text += `排序结果：${s.rank.map((r,i) => `${i+1}.${r}`).join(' → ')}\n`;
     } else {
       text += '状态：未完成\n';
