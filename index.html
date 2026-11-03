@@ -234,8 +234,8 @@
     overflow-y: auto;
     padding-right: 4px;
   }
-  .pool-wrap { flex: 1.9 1 0; }
-  .rank-wrap { flex: 1 1 0; }
+  .pool-wrap { flex: 2.3 1 0; }
+  .rank-wrap { flex: 1 1 0; min-height: 90px; }
 
   .action-bar {
     display: flex;
@@ -282,10 +282,18 @@
   .analysis-content li { margin-bottom: 5px; }
 
   @media (max-height: 820px) {
-    .card { padding: 8px 6px 9px; min-height: 96px; gap: 2px; }
-    .card-ico { font-size: 21px; }
-    .card-label { font-size: 13.6px; line-height: 1.22; }
-    .card-hint { font-size: 9.8px; line-height: 1.35; }
+    .scene { padding: 7px 11px 8px; margin-bottom: 8px; }
+    .scene-head { margin-bottom: 3px; }
+    .scene-body p { font-size: 12.3px; line-height: 1.45; margin: 2px 0; }
+    .name-row { margin-bottom: 8px; }
+    .name-display { padding: 9px 14px; font-size: 17px; }
+    .section-title { margin: 5px 0 7px; font-size: 15px; }
+    .card { padding: 6px 5px 7px; min-height: 76px; gap: 1px; }
+    .card-ico { font-size: 20px; }
+    .card-label { font-size: 13.4px; line-height: 1.2; }
+    /* 矮屏隐藏说明行，保证 10 张卡完整可见；标签本身已够明确，悬停仍可看说明 */
+    .card-hint { display: none; }
+    .card-label { font-size: 14px; }
     .rank-card { min-height: 84px; }
     .card-grid { gap: 8px; }
     .section-title { margin: 6px 0 8px; font-size: 16px; }
@@ -379,6 +387,41 @@
   }
   .hc-quote b { color: #F5D89A; }
 
+  /* ===== 场景说明 ===== */
+  .scene {
+    background: linear-gradient(180deg, #eef5ff 0%, #f7faff 100%);
+    border: 1px solid #d6e4f7;
+    border-left: 4px solid #4F8EF7;
+    border-radius: 10px;
+    padding: 10px 13px 11px;
+    margin-bottom: 12px;
+    flex: 0 0 auto;
+  }
+  .scene-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .scene-tag {
+    font-size: 13.5px; font-weight: 800; color: #1a4d8f;
+    letter-spacing: 0.5px;
+  }
+  .scene-toggle {
+    border: none; background: transparent; color: #6b8fc0;
+    font-size: 12px; cursor: pointer; padding: 2px 4px;
+  }
+  .scene-toggle:hover { color: #4F8EF7; text-decoration: underline; }
+  .scene-body p {
+    margin: 3px 0; font-size: 13.2px; line-height: 1.6;
+    color: #2b3a4d;
+  }
+  .scene-body strong { color: #0f3a6e; }
+  .scene-mini { display: none; font-size: 12.8px; color: #2b3a4d; cursor: pointer; }
+  .scene-mini span { color: #4F8EF7; }
+  .scene.collapsed { padding: 8px 13px; }
+  .scene.collapsed .scene-head,
+  .scene.collapsed .scene-body { display: none; }
+  .scene.collapsed .scene-mini { display: block; }
+
   /* ===== 卡片图标 ===== */
   .card {
     padding: 12px 9px 11px;
@@ -450,7 +493,7 @@
 <!-- 顶部栏 -->
 <div class="top-bar">
   <h1>🧠 AI时代价值排序 · 课堂互动</h1>
-  <div class="tip">按重要程度依次点击卡片 · 越靠前越重要</div>
+  <div class="tip">先看场景 → 依次点卡片 → 点绿色「确认提交」</div>
 </div>
 
 <div class="container">
@@ -466,6 +509,20 @@
 
   <!-- 中间：卡片操作 -->
   <div class="main-panel">
+
+    <!-- 场景说明 -->
+    <div class="scene" id="sceneBox">
+      <div class="scene-head">
+        <span class="scene-tag">🎬 场景</span>
+        <button class="scene-toggle" id="sceneToggle" onclick="toggleScene()">收起</button>
+      </div>
+      <div class="scene-body">
+        <p><strong>今晚要交的作业，AI 三分钟就能给出答案。</strong>你可以直接用，也可以不用——但你心里有杆秤：<strong>什么能接受，什么不能。</strong></p>
+        <p>这 <strong>10 张卡就是「你在意的点」</strong>：按真实想法，<strong>从最在意开始点选</strong>，至少选 3 张。</p>
+      </div>
+      <div class="scene-mini" id="sceneMini" onclick="toggleScene()">🎬 场景：AI 三分钟能给出作业答案，你在意的是什么？ <span>展开 →</span></div>
+    </div>
+
     <div class="name-row">
       <div class="name-display" id="studentName">请点击左侧学生姓名开始</div>
     </div>
@@ -609,6 +666,26 @@ function init() {
   renderStudentList();
 }
 
+// ========== 场景条 ==========
+let sceneManual = false;
+
+function toggleScene() {
+  const box = document.getElementById('sceneBox');
+  const btn = document.getElementById('sceneToggle');
+  box.classList.toggle('collapsed');
+  sceneManual = true;
+  btn.textContent = box.classList.contains('collapsed') ? '展开' : '收起';
+}
+
+function autoCollapseScene() {
+  if (sceneManual) return;
+  const box = document.getElementById('sceneBox');
+  if (box && !box.classList.contains('collapsed')) {
+    box.classList.add('collapsed');
+    document.getElementById('sceneToggle').textContent = '展开';
+  }
+}
+
 // ========== 卡片池 ==========
 function renderCardPool() {
   const pool = document.getElementById('cardPool');
@@ -659,6 +736,7 @@ function selectCard(card) {
   currentRank.push(card);
   renderCardPool();
   renderRankArea();
+  autoCollapseScene();   // 第一次选卡后自动收起，把空间让给卡片
 }
 
 function removeCard(index) {
