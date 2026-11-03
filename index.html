@@ -825,27 +825,29 @@ function submitRank() { saveAndRender(); }
 function generateAnalysis() { saveAndRender({ silent: true }); }
 
 // ========== 五维计算 ==========
+// 某个维度对你多重要 = 该维度「最靠前那张卡」的位置（权重 0.7）
+//                    + 该维度「所有卡的平均位置」（权重 0.3）
+// 只用平均会在名单很短时把分数压平（各维度都接近 3.0），导致类型误判为平衡；
+// 只看最靠前又会忽略「同一维度的另一张排在很后面」。两者加权更稳。
 function computeDims(rank) {
   const n = rank.length;
+  const posOf = i => (n > 1 ? i / (n - 1) : 0);   // 0 = 第一位，1 = 最后一位
   return DIMS.map(d => {
     const idxs = [];
     rank.forEach((c, i) => { if (d.cards.indexOf(c) >= 0) idxs.push(i); });
-    if (!idxs.length) return 3;                 // 该维度一张没选 → 中性
-    let sum = 0;
-    idxs.forEach(i => { sum += (n > 1 ? i / (n - 1) : 0); });
-    const avg = sum / idxs.length;              // 0 = 最看重
-    return Math.round((5 - 4 * avg) * 10) / 10;
+    if (!idxs.length) return 3;                   // 一张没选 → 中性 3 分
+    const pos = idxs.map(posOf);
+    const best = Math.min.apply(null, pos);
+    const mean = pos.reduce((a, b) => a + b, 0) / pos.length;
+    const p = 0.7 * best + 0.3 * mean;
+    return Math.round((5 - 4 * p) * 10) / 10;
   });
 }
 
 function typeIndexOf(dims) {
-  let best = -1, bi = -1, allSame = true;
-  dims.forEach((v, i) => {
-    if (i > 0 && Math.abs(v - dims[0]) > 0.05) allSame = false;
-    if (v > best) { best = v; bi = i; }
-  });
-  if (allSame || best <= 3.2) return -1;       // 都很平均 → 平衡型
-  return bi;
+  const max = Math.max.apply(null, dims);
+  if (max <= 3.3) return -1;                   // 没有任何维度明显突出 → 平衡型
+  return dims.indexOf(max);
 }
 
 // ========== 类型文案 ==========
